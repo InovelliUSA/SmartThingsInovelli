@@ -1,4 +1,4 @@
-}
+/*
  *  Inovelli 1-Channel Smart Plug w/Energy Monitoring NZW38
  *  Author: Eric Maycock (erocm123)
  *  Date: 2018-05-29
