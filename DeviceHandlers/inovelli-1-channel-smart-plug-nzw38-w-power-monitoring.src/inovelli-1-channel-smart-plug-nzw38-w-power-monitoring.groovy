@@ -1,7 +1,7 @@
-/*
- *  Inovelli 1-Channel Smart Plug w/Energy Monitoring NZW38
+/**
+ *  Inovelli 1-Channel Smart Outlet/Plug w/Energy Monitoring NZW32/38
  *  Author: Eric Maycock (erocm123)
- *  Date: 2018-05-29
+ *  Date: 2018-06-13
  *
  *  Copyright 2018 Eric Maycock
  *
@@ -14,12 +14,10 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  2018-05-02: Added support for Z-Wave Association Tool SmartApp. Associations require firmware 1.02+.
- *              https://github.com/erocm123/SmartThingsPublic/tree/master/smartapps/erocm123/z-waveat
  */
  
 metadata {
-    definition (name: "Inovelli 1-Channel Smart Plug NZW38 w/Energy Monitoring", namespace: "erocm123", author: "Eric Maycock") {
+    definition (name: "Inovelli 1-Channel Smart Outlet/Plug NZW32/38 w/Energy Monitoring", namespace: "erocm123", author: "Eric Maycock") {
         capability "Switch"
         capability "Refresh"
         capability "Polling"
@@ -28,15 +26,20 @@ metadata {
         capability "Health Check"
         capability "Button"
         capability "Configuration"
+        capability "Button"
         
         attribute "lastActivity", "String"
         attribute "voltage", "number"
+        attribute "lastEvent", "String"
+        attribute "firmware", "String"
         
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
         command "pressUpX2"
+        command "pressUpX3"
 
         fingerprint mfr: "0312", prod: "2600", model: "2600", deviceJoinName: "Inovelli Smart Plug w/Energy Monitoring"
-        fingerprint deviceId: "0x1001", inClusters: "5E,0x25,0x32,0x70,0x71,0x85,0x8E,0x59,0x55,0x86,0x72,0x5A,0x73,0x5B,0x6C,0x7A"
+        fingerprint mfr: "0312", prod: "2100", model: "2100", deviceJoinName: "Inovelli Smart Outlet w/Energy Monitoring"
+        fingerprint deviceId: "0x1001", inClusters: "0x5E,0x25,0x32,0x70,0x71,0x85,0x8E,0x59,0x55,0x86,0x72,0x5A,0x73,0x5B,0x6C,0x7A"
     }
 
     simulator {
@@ -44,14 +47,16 @@ metadata {
     
     preferences {
         input "autoOff", "number", title: "Auto Off\n\nAutomatically turn switch off after this number of seconds\nRange: 0 to 32767", description: "Tap to set", required: false, range: "0..32767"
-        input "ledIndicator", "enum", title: "LED Indicator\n\nTurn LED indicator on when switch is:\n", description: "Tap to set", required: false, options:[["0": "On"], ["1": "Off"], ["2": "Disable"]], defaultValue: "0"
-        input "powerOnState", "enum", title: "Power On State\n\nReturn to this state after power failure:\n", description: "Tap to set", required: false, options:[["0": "Off"], ["1": "On"], ["2": "Previous"]], defaultValue: "2"
+        input "ledIndicator", "enum", title: "LED Indicator\n\nTurn LED indicator on when switch is:\n", description: "Tap to set", required: false, options:[[0: "On"], [1: "Off"], [2: "Disable"], [3: "Always On"]], defaultValue: 0
+        input "powerOnState", "enum", title: "Power On State\n\nReturn to this state after power failure:\n", description: "Tap to set", required: false, options:[[0: "Off"], [1: "On"], [2: "Previous"]], defaultValue: 2
         input "reportTimeInt", "number", title: "Report Interval (Seconds)\n\nSend energy reports at this interval\nRange: 0 to 32767", description: "Tap to set", required: false, range: "0..32767"
         input "reportPowInt", "number", title: "Report Interval (Consumption)\n\nSend energy reports when power consumption changes by this much\nRange: 0 to 255", description: "Tap to set", required: false, range: "0..255"
         input "scene2Lower", "number", title: "Scene 2 Lower Threshold\n\nSend central scene report when power consumption reaches this lower threshold\nRange: 0 to 255", description: "Tap to set", required: false, range: "0..255"
         input "scene2Upper", "number", title: "Scene 2 Upper Threshold\n\nSend central scene report when power consumption reaches this upper threshold\nRange: 0 to 255", description: "Tap to set", required: false, range: "0..255"
         input "group3Lower", "number", title: "Group 3 Lower Threshold\n\nSend off command to group 3 when power consumption reaches this lower threshold\nRange: 0 to 255", description: "Tap to set", required: false, range: "0..255"
-        input "group4Upper", "number", title: "Group 4 Lower Threshold\n\nSend off command to group 4 when power consumption reaches this upper threshold\nRange: 0 to 255", description: "Tap to set", required: false, range: "0..255"
+        input "group4Upper", "number", title: "Group 4 Upper Threshold\n\nSend off command to group 4 when power consumption reaches this upper threshold\nRange: 0 to 255", description: "Tap to set", required: false, range: "0..255"
+        input "loadProtect", "number", title: "Load Protect\n\nAutomatically turn switch off if it exceeds this wattage\nRange: 0 to 1200 (0 - Disabled)", description: "Tap to set", required: false, range: "0..1200"
+        input "disableLocal", "enum", title: "Disable Local Control\n\nDisable ability to control switch from the wall\n(Firmware 1.03+)", description: "Tap to set", required: false, options:[["2": "Yes"], ["0": "No"]], defaultValue: "0"
         input description: "Use the \"Z-Wave Association Tool\" SmartApp to set device associations. (Firmware 1.02+)\n\nGroup 2: Sends on/off commands to associated devices when switch is pressed (BASIC_SET).", title: "Associations", displayDuringSetup: false, type: "paragraph", element: "paragraph"
     }
     
@@ -65,27 +70,42 @@ metadata {
             }
         }
         valueTile("power", "device.power", decoration: "flat", width: 2, height: 2) {
-   state "default", label:'${currentValue} W'
-  }
-  valueTile("energy", "device.energy", decoration: "flat", width: 2, height: 2) {
-   state "default", label:'${currentValue} kWh'
-  }
-  standardTile("reset", "device.energy", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-   state "default", label:'reset kWh', action:"reset"
-  }
+			state "default", label:'${currentValue} W'
+		}
+		valueTile("energy", "device.energy", decoration: "flat", width: 2, height: 2) {
+			state "default", label:'${currentValue} kWh'
+		}
         valueTile("voltage", "device.voltage", width: 2, height: 2) {
-   state "default", label:'${currentValue} V'
-  }
-        standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-            state "default", label: "", action: "refresh.refresh", icon: "st.secondary.refresh"
-        }
-        
+			state "default", label:'${currentValue} V'
+		}
         valueTile("lastActivity", "device.lastActivity", inactiveLabel: false, decoration: "flat", width: 4, height: 1) {
             state "default", label: 'Last Activity: ${currentValue}',icon: "st.Health & Wellness.health9"
         }
-        valueTile("icon", "device.icon", inactiveLabel: false, decoration: "flat", width: 4, height: 1) {
+        
+        valueTile("firmware", "device.firmware", inactiveLabel: false, decoration: "flat", width: 2, height: 1) {
+            state "default", label: 'fw: ${currentValue}', icon: ""
+        }
+        
+        valueTile("info", "device.info", inactiveLabel: false, decoration: "flat", width: 3, height: 1) {
+            state "default", label: 'Tap on the buttons below to test scenes (ie: Tap ▲▲ 2x, ▲▲▲ 3x, etc depending on the button)'
+        }
+        
+        valueTile("icon", "device.icon", inactiveLabel: false, decoration: "flat", width: 2, height: 1) {
             state "default", label: '', icon: "https://inovelli.com/wp-content/uploads/Device-Handler/Inovelli-Device-Handler-Logo.png"
         }
+        
+        standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat", width: 1, height: 1) {
+            state "default", label: "", action: "refresh.refresh", icon: "st.secondary.refresh"
+        }
+        standardTile("pressUpX2", "device.button", width: 2, height: 1, decoration: "flat") {
+            state "default", label: "Tap ▲▲", backgroundColor: "#ffffff", action: "pressUpX2"
+        }
+        standardTile("pressUpX3", "device.button", width: 2, height: 1, decoration: "flat") {
+            state "default", label: "Tap ▲▲▲", backgroundColor: "#ffffff", action: "pressUpX3"
+        }
+		standardTile("reset", "device.energy", inactiveLabel: false, decoration: "flat", width: 2, height: 1) {
+			state "default", label:'reset kWh', action:"reset"
+		}
     }
 }
 
@@ -114,7 +134,7 @@ def initialize() {
     sendEvent(name: "checkInterval", value: 3 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
     sendEvent(name: "numberOfButtons", value: 1, displayed: true)
     def cmds = processAssociations()
-    log.debug powerOnState
+    cmds << zwave.versionV1.versionGet()
     cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: powerOnState!=null? powerOnState.toInteger() : 2, parameterNumber: 2, size: 1)
     cmds << zwave.configurationV1.configurationGet(parameterNumber: 2)
     cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: ledIndicator!=null? ledIndicator.toInteger() : 1, parameterNumber: 3, size: 1)
@@ -131,8 +151,15 @@ def initialize() {
     cmds << zwave.configurationV1.configurationGet(parameterNumber: 13)
     cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: group3Lower!=null? group3Lower.toInteger() : 0, parameterNumber: 14, size: 1)
     cmds << zwave.configurationV1.configurationGet(parameterNumber: 14)
-    cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: group4Upper!=null? groupUpper.toInteger() : 0, parameterNumber: 15, size: 1)
+    cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: group4Upper!=null? group4Upper.toInteger() : 0, parameterNumber: 15, size: 1)
     cmds << zwave.configurationV1.configurationGet(parameterNumber: 15)
+    cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: loadProtect!=null? loadProtect.toInteger() : 0, parameterNumber: 16, size: 2)
+    cmds << zwave.configurationV1.configurationGet(parameterNumber: 15)
+    
+    if (state.disableLocal != settings.disableLocal) {
+        cmds << zwave.protectionV2.protectionSet(localProtectionState : disableLocal!=null? disableLocal.toInteger() : 0, rfProtectionState: 0)
+        cmds << zwave.protectionV2.protectionGet()
+    }
 
     return cmds
 }
@@ -182,22 +209,23 @@ def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulat
 
 def zwaveEvent(physicalgraph.zwave.commands.meterv1.MeterReport cmd) {
     def event
- if (cmd.scale == 0) {
-     if (cmd.meterType == 161) {
-      event = createEvent(name: "voltage", value: cmd.scaledMeterValue, unit: "V")
+	if (cmd.scale == 0) {
+    	if (cmd.meterType == 161) {
+		    event = createEvent(name: "voltage", value: cmd.scaledMeterValue, unit: "V")
         } else if (cmd.meterType == 33) {
-         event = createEvent(name: "energy", value: cmd.scaledMeterValue, unit: "kWh")
+        	event = createEvent(name: "energy", value: cmd.scaledMeterValue, unit: "kWh")
         }
- } else if (cmd.scale == 1) {
-  event = createEvent(name: "amperage", value: cmd.scaledMeterValue, unit: "A")
- } else if (cmd.scale == 2) {
-  event = createEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
- }
+	} else if (cmd.scale == 1) {
+		event = createEvent(name: "amperage", value: cmd.scaledMeterValue, unit: "A")
+	} else if (cmd.scale == 2) {
+		event = createEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
+	}
 
     return event
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
+    log.debug cmd
     createEvent(buttonEvent(cmd.sceneNumber, (cmd.sceneNumber == 2? "held" : "pushed"), "physical"))
 }
 
@@ -238,7 +266,7 @@ def refresh() {
               zwave.switchBinaryV1.switchBinaryGet(),
               zwave.meterV2.meterGet(scale: 0),
               zwave.meterV2.meterGet(scale: 1),
-        zwave.meterV2.meterGet(scale: 2)
+		      zwave.meterV2.meterGet(scale: 2)
              ])
 }
 
@@ -277,6 +305,7 @@ def setAssociationGroup(group, nodes, action, endpoint = null){
             break
         }
     }
+    log.debug "Desired: desiredAssociation${group}: ${state."desiredAssociation${group}"}"
 }
 
 def processAssociations(){
@@ -294,14 +323,18 @@ def processAssociations(){
          if(state."desiredAssociation${i}" != null || state."defaultG${i}") {
             def refreshGroup = false
             ((state."desiredAssociation${i}"? state."desiredAssociation${i}" : [] + state."defaultG${i}") - state."actualAssociation${i}").each {
-                log.debug "Adding node $it to group $i"
-                cmds << zwave.associationV2.associationSet(groupingIdentifier:i, nodeId:Integer.parseInt(it,16))
-                refreshGroup = true
+                if (it != null){
+                    log.debug "Adding node $it to group $i"
+                    cmds << zwave.associationV2.associationSet(groupingIdentifier:i, nodeId:Integer.parseInt(it,16))
+                    refreshGroup = true
+                }
             }
             ((state."actualAssociation${i}" - state."defaultG${i}") - state."desiredAssociation${i}").each {
-                log.debug "Removing node $it from group $i"
-                cmds << zwave.associationV2.associationRemove(groupingIdentifier:i, nodeId:Integer.parseInt(it,16))
-                refreshGroup = true
+                if (it != null){
+                    log.debug "Removing node $it from group $i"
+                    cmds << zwave.associationV2.associationRemove(groupingIdentifier:i, nodeId:Integer.parseInt(it,16))
+                    refreshGroup = true
+                }
             }
             if (refreshGroup == true) cmds << zwave.associationV2.associationGet(groupingIdentifier:i)
             else log.debug "There are no association actions to complete for group $i"
@@ -332,12 +365,21 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationGroupingsRe
     createEvent(name: "groups", value: cmd.supportedGroupings)
 }
 
-void zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
     log.debug cmd
     if(cmd.applicationVersion && cmd.applicationSubVersion) {
-     def firmware = "${cmd.applicationVersion}.${cmd.applicationSubVersion.toString().padLeft(2,'0')}"
+	    def firmware = "${cmd.applicationVersion}.${cmd.applicationSubVersion.toString().padLeft(2,'0')}"
         state.needfwUpdate = "false"
-        sendEvent(name: "status", value: "fw: ${firmware}")
-        updateDataValue("firmware", firmware)
+        createEvent(name: "firmware", value: "${firmware}")
+    }
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.protectionv2.ProtectionReport cmd) {
+    log.debug cmd
+    def integerValue = cmd.localProtectionState
+    def children = childDevices
+    def childDevice = children.find{it.deviceNetworkId.endsWith("ep101")}
+    if (childDevice) {
+        childDevice.sendEvent(name: "switch", value: integerValue > 0 ? "on" : "off")        
     }
 }
