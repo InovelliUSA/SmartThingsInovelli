@@ -26,7 +26,6 @@ metadata {
         capability "Health Check"
         capability "Button"
         capability "Configuration"
-        capability "Button"
         
         attribute "lastActivity", "String"
         attribute "voltage", "number"
