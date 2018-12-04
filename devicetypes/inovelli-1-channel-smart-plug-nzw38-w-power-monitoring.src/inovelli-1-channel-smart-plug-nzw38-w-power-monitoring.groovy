@@ -17,7 +17,7 @@
  */
  
 metadata {
-    definition (name: "Inovelli 1-Channel Smart Outlet/Plug NZW32/38 w/Energy Monitoring", namespace: "erocm123", author: "Eric Maycock") {
+    definition (name: "Inovelli 1-Channel Smart Outlet/Plug NZW32/38 w/Energy Monitoring", namespace: "InovelliUSA", author: "Eric Maycock") {
         capability "Switch"
         capability "Refresh"
         capability "Polling"
