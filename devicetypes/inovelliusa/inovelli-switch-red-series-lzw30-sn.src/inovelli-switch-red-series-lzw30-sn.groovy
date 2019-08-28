@@ -17,7 +17,7 @@
  */
  
 metadata {
-    definition (name: "Inovelli Switch Red Series", namespace: "inovelliUSA", author: "Eric Maycock", vid: "generic-switch") {
+    definition (name: "Inovelli Switch Red Series LZW30-SN", namespace: "inovelliUSA", author: "Eric Maycock", vid: "generic-switch") {
         capability "Switch"
         capability "Refresh"
         capability "Actuator"
