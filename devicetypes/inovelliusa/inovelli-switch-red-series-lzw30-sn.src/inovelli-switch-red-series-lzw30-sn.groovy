@@ -49,9 +49,7 @@ metadata {
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
 
         fingerprint mfr: "031E", prod: "0002", model: "0001", deviceJoinName: "Inovelli Switch Red Series" 
-        fingerprint mfr: "031E", prod: "0004", model: "0001", deviceJoinName: "Inovelli Switch"
         fingerprint deviceId: "0x1001", inClusters: "0x5E,0x6C,0x55,0x98,0x9F,0x22,0x70,0x85,0x59,0x86,0x32,0x72,0x5A,0x5B,0x73,0x75,0x7A"// Advanced (Red) Switch
-        fingerprint deviceId: "0x1001", inClusters: "0x5E,0x55,0x98,0x9F,0x6C,0x22,0x70,0x85,0x59,0x86,0x25,0x72,0x5A,0x5B,0x73,0x75,0x7A" // Standard Switch
          
         
     }
