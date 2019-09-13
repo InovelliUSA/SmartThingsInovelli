@@ -1,5 +1,5 @@
 /**
- *  Inovelli Switch Red Series LZW30
+ *  Inovelli Switch LZW30
  *  Author: Eric Maycock (erocm123)
  *  Date: 2019-08-28
  *
@@ -27,20 +27,6 @@ metadata {
         attribute "lastActivity", "String"
         attribute "lastEvent", "String"
         attribute "firmware", "String"
-        
-        command "pressUpX1"
-        command "pressDownX1"
-        command "pressUpX2"
-        command "pressDownX2"
-        command "pressUpX3"
-        command "pressDownX3"
-        command "pressUpX4"
-        command "pressDownX4"
-        command "pressUpX5"
-        command "pressDownX5"
-        command "holdUp"
-        command "holdDown"
-        command "pressConfig"
         
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
 
@@ -93,60 +79,6 @@ metadata {
         valueTile("icon", "device.icon", inactiveLabel: false, decoration: "flat", width: 2, height: 1) {
             state "default", label: '', icon: "https://inovelli.com/wp-content/uploads/Device-Handler/Inovelli-Device-Handler-Logo.png"
         }
-        
-        /*
-        standardTile("pressUpX1", "device.pressUpX1", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressUpX1"
-        }
-        
-        standardTile("pressUpX2", "device.pressUpX2", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressUpX2"
-        }
-        
-        standardTile("pressUpX3", "device.pressUpX3", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressUpX3"
-        }
-        
-        standardTile("pressDownX1", "device.pressDownX1", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressDownX1"
-        }
-        
-        standardTile("pressDownX2", "device.pressDownX2", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressDownX2"
-        }
-        
-        standardTile("pressDownX3", "device.pressDownX3", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressDownX3"
-        }
-        
-        standardTile("pressUpX4", "device.pressUpX4", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressUpX4"
-        }
-        
-        standardTile("pressUpX5", "device.pressUpX5", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressUpX5"
-        }
-        
-        standardTile("holdUp", "device.holdUp", width: 2, height: 1, decoration: "flat") {
-			state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "holdUp"
-		}
-        
-        standardTile("pressDownX4", "device.pressDownX4", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressDownX4"
-        }
-        
-        standardTile("pressDownX5", "device.pressDownX5", width: 2, height: 1, decoration: "flat") {
-            state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressDownX5"
-        }
-        
-        standardTile("holdDown", "device.holdDown", width: 2, height: 1, decoration: "flat") {
-			state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "holdDown"
-		}
-        
-        standardTile("pressConfig", "device.pressConfig", width: 2, height: 1, decoration: "flat") {
-			state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressConfig"
-		}
-        */
     }
 }
 
@@ -660,33 +592,6 @@ def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cm
 	createEvent(name: "switch", value: cmd.value ? "on" : "off", type: "digital")
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
-    log.debug cmd
-    switch (cmd.keyAttributes) {
-       case 0:
-       if (cmd.sceneNumber == 3) createEvent(buttonEvent(7, "pushed", "physical"))
-       else createEvent(buttonEvent(cmd.keyAttributes + 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
-       break
-       case 1:
-       createEvent(buttonEvent(6, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
-       break
-       case 2:
-       null
-       break
-       default:
-       createEvent(buttonEvent(cmd.keyAttributes - 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
-       break
-    }
-}
-
-def buttonEvent(button, value, type = "digital") {
-    if(button != 6)
-        sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Tap '.padRight(button+5, '▼'):' Tap '.padRight(button+5, '▲')}", displayed:false)
-    else
-        sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Hold ▼':' Hold ▲'}", displayed:false)
-    [name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true, type: type]
-}
-
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
     log.debug "Unhandled: $cmd"
     null
@@ -736,58 +641,6 @@ private command(physicalgraph.zwave.Command cmd) {
 
 private commands(commands, delay=500) {
     delayBetween(commands.collect{ command(it) }, delay)
-}
-
-def pressUpX1() {
-    sendEvent(buttonEvent(1, "pushed"))
-}
-
-def pressDownX1() {
-    sendEvent(buttonEvent(1, "held"))
-}
-
-def pressUpX2() {
-    sendEvent(buttonEvent(2, "pushed"))
-}
-
-def pressDownX2() {
-    sendEvent(buttonEvent(2, "held"))
-}
-
-def pressUpX3() {
-    sendEvent(buttonEvent(3, "pushed"))
-}
-
-def pressDownX3() {
-    sendEvent(buttonEvent(3, "held"))
-}
-
-def pressUpX4() {
-    sendEvent(buttonEvent(4, "pushed"))
-}
-
-def pressDownX4() {
-    sendEvent(buttonEvent(4, "held"))
-}
-
-def pressUpX5() {
-    sendEvent(buttonEvent(5, "pushed"))
-}
-
-def pressDownX5() {
-    sendEvent(buttonEvent(5, "held"))
-}
-
-def holdUp() {
-    sendEvent(buttonEvent(6, "pushed"))
-}
-
-def holdDown() {
-    sendEvent(buttonEvent(6, "held"))
-}
-
-def pressConfig() {
-    sendEvent(buttonEvent(7, "pushed"))
 }
 
 def setDefaultAssociations() {
