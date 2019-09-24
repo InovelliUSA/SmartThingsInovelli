@@ -93,8 +93,6 @@ metadata {
         }
         */
         
-        childDeviceTiles("all")
-        
         standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat", width: 2, height: 1) {
             state "default", label: "", action: "refresh.refresh", icon: "st.secondary.refresh"
         }
@@ -102,6 +100,8 @@ metadata {
         valueTile("icon", "device.icon", inactiveLabel: false, decoration: "flat", width: 2, height: 1) {
             state "default", label: '', icon: "https://inovelli.com/wp-content/uploads/Device-Handler/Inovelli-Device-Handler-Logo.png"
         }
+        
+        childDeviceTiles("all")
         
         standardTile("reset", "device.energy", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
 		    state "default", label:'reset kWh', action:"reset"
