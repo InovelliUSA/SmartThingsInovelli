@@ -1,5 +1,5 @@
 /**
- *  Inovelli Switch Red Series
+ *  Inovelli Switch Red Series LZW30-SN
  *  Author: Eric Maycock (erocm123)
  *  Date: 2019-08-28
  *
@@ -17,7 +17,7 @@
  */
  
 metadata {
-    definition (name: "Inovelli Switch Red Series LZW30-SN", namespace: "inovelliUSA", author: "Eric Maycock", vid: "generic-switch") {
+    definition (name: "Inovelli Switch Red Series LZW30-SN", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-switch") {
         capability "Switch"
         capability "Refresh"
         capability "Actuator"
@@ -46,12 +46,11 @@ metadata {
         command "holdDown"
         command "pressConfig"
         
+        command "reset"
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
 
         fingerprint mfr: "031E", prod: "0002", model: "0001", deviceJoinName: "Inovelli Switch Red Series" 
         fingerprint deviceId: "0x1001", inClusters: "0x5E,0x6C,0x55,0x98,0x9F,0x22,0x70,0x85,0x59,0x86,0x32,0x72,0x5A,0x5B,0x73,0x75,0x7A"// Advanced (Red) Switch
-         
-        
     }
 
     simulator {
@@ -104,6 +103,9 @@ metadata {
             state "default", label: '', icon: "https://inovelli.com/wp-content/uploads/Device-Handler/Inovelli-Device-Handler-Logo.png"
         }
         
+        standardTile("reset", "device.energy", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+		    state "default", label:'reset kWh', action:"reset"
+	    }
         /*
         standardTile("pressUpX1", "device.pressUpX1", width: 2, height: 1, decoration: "flat") {
             state "default", label: '${currentValue}', backgroundColor: "#ffffff", action: "pressUpX1"
@@ -671,7 +673,6 @@ def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cm
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
-    log.debug cmd
     switch (cmd.keyAttributes) {
        case 0:
        if (cmd.sceneNumber == 3) createEvent(buttonEvent(7, "pushed", "physical"))
@@ -700,6 +701,14 @@ def buttonEvent(button, value, type = "digital") {
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
     log.debug "Unhandled: $cmd"
     null
+}
+
+def reset() {
+	def cmds = []
+    cmds << zwave.meterV2.meterReset()
+    cmds << zwave.meterV2.meterGet(scale: 0)
+    cmds << zwave.meterV2.meterGet(scale: 2)
+	commands(cmds, 1000)
 }
 
 def on() {
