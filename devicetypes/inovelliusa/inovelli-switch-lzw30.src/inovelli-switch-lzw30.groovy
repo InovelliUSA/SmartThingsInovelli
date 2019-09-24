@@ -17,7 +17,7 @@
  */
  
 metadata {
-    definition (name: "Inovelli Switch LZW30", namespace: "inovelliUSA", author: "Eric Maycock", vid: "generic-switch") {
+    definition (name: "Inovelli Switch LZW30", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-switch") {
         capability "Switch"
         capability "Refresh"
         capability "Actuator"
@@ -103,60 +103,6 @@ def generate_preferences()
         }  
     }
     
-    input description: "When each notification set (Color, Level, Duration, Type) is configured, a switch child device is created that can be used in SmartApps to activate that notification.", title: "LED Notifications", displayDuringSetup: false, type: "paragraph", element: "paragraph"
-    
-    [1,2,3,4,5].each { i ->
-                input "parameter8-${i}a", "enum", title: "LED Effect Color - Notification $i", description: "Tap to set", displayDuringSetup: false, required: false, options: [
-                    0:"Red",
-                    21:"Orange",
-                    42:"Yellow",
-                    85:"Green",
-                    127:"Cyan",
-                    170:"Blue",
-                    212:"Violet",
-                    234:"Pink"]
-                input "parameter8-${i}b", "enum", title: "LED Effect Level - Notification $i", description: "Tap to set", displayDuringSetup: false, required: false, options: [
-                    0:"0%",
-                    1:"10%",
-                    2:"20%",
-                    3:"30%",
-                    4:"40%",
-                    5:"50%",
-                    6:"60%",
-                    7:"70%",
-                    8:"80%",
-                    9:"90%",
-                    10:"100%"]
-                input "parameter8-${i}c", "enum", title: "LED Effect Duration - Notification $i", description: "Tap to set", displayDuringSetup: false, required: false, options: [
-                    1:"1 Second",
-                    2:"2 Seconds",
-                    3:"3 Seconds",
-                    4:"4 Seconds",
-                    5:"5 Seconds",
-                    6:"6 Seconds",
-                    7:"7 Seconds",
-                    8:"8 Seconds",
-                    9:"9 Seconds",
-                    10:"10 Seconds",
-                    20:"20 Seconds",
-                    30:"30 Seconds",
-                    40:"40 Seconds",
-                    50:"50 Seconds",
-                    60:"60 Seconds",
-                    62:"2 Minutes",
-                    63:"3 Minutes",
-                    64:"4 Minutes",
-                    65:"5 Minutes",
-                    255:"Indefinetly"]
-                input "parameter8-${i}d", "enum", title: "LED Effect Type - Notification $i", description: "Tap to set", displayDuringSetup: false, required: false, options: [
-                    0:"Off",
-                    1:"Solid",
-                    //2:"Chase",
-                    2:"Fast Blink",
-                    3:"Slow Blink",
-                    4:"Pulse"]
-    
-    }
     input "disableLocal", "enum", title: "Disable Local Control\n\nDisable ability to control switch from the wall", description: "Tap to set", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
 }
 
@@ -267,7 +213,6 @@ def updated() {
 
 def initialize() {
     sendEvent(name: "checkInterval", value: 3 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
-    sendEvent(name: "numberOfButtons", value: 7, displayed: true)
     
     if (enableDisableLocalChild && !childExists("ep101")) {
     try {
@@ -289,26 +234,6 @@ def initialize() {
         }
     }
     
-    [1,2,3,4,5].each { i ->
-    if ((settings."parameter8-${i}a"!=null && settings."parameter8-${i}b"!=null && settings."parameter8-${i}c"!=null && settings."parameter8-${i}d"!=null) && !childExists("ep${i}")) {
-    try {
-        addChildDevice("Switch Child Device", "${device.deviceNetworkId}-ep${i}", null,
-                [completedSetup: true, label: "${device.displayName} (Notification ${i})",
-                isComponent: true, componentName: "ep${i}", componentLabel: "Notification ${i}"])
-    } catch (e) {
-        runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Child Device\" is installed"]])
-    }
-    } else if ((settings."parameter8-${i}a"==null || settings."parameter8-${i}b"==null || settings."parameter8-${i}c"==null || settings."parameter8-${i}d"==null) && childExists("ep${i}")) {
-        log.debug "Trying to delete child device ep${i}. If this fails it is likely that there is a SmartApp using the child device in question."
-        def children = childDevices
-        def childDevice = children.find{it.deviceNetworkId.endsWith("ep${i}")}
-        try {
-            log.debug "SmartThings has issues trying to delete the child device when it is in use. Need to manually delete them."
-            //if(childDevice) deleteChildDevice(childDevice.deviceNetworkId)
-        } catch (e) {
-            runIn(3, "sendAlert", [data: [message: "Failed to delete child device. Make sure the device is not in use by any SmartApp."]])
-        }
-    }}
     if (device.label != state.oldLabel) {
         def children = childDevices
         def childDevice = children.find{it.deviceNetworkId.endsWith("ep1")}
@@ -384,7 +309,7 @@ def getParameter(number) {
 }
 
 def getParameterNumbers(){
-    return [1,2,3,4,5,6,7,10,11,12]
+    return [1,2,3,4,5,6,7]
 }
 
 def getParameterInfo(number, type){
@@ -455,7 +380,6 @@ def getParameterInfo(number, type){
     parameter.parameter11name="Periodic Power & Energy Reports"
     parameter.parameter12name="Energy Reports"
     
-    
     parameter.parameter1description="The state the switch should return to once power is restored after power failure."
 	parameter.parameter2description="Inverts the orientation of the switch. Useful when the switch is installed upside down. Essentially up becomes down and down becomes up."
     parameter.parameter3description="Automatically turns the switch off after this many seconds. When the switch is turned on a timer is started that is the duration of this setting. When the timer expires, the switch is turned off."
@@ -470,26 +394,6 @@ def getParameterInfo(number, type){
     parameter.parameter12description="The energy level change that will result in a new energy report being sent. The value is a percentage of the previous report."
     
     return parameter."parameter${number}${type}"
-}
-
-
-
-def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd) {
-    log.debug cmd
-    def event
-	if (cmd.scale == 0) {
-    	if (cmd.meterType == 161) {
-		    event = createEvent(name: "voltage", value: cmd.scaledMeterValue, unit: "V")
-        } else if (cmd.meterType == 1) {
-        	event = createEvent(name: "energy", value: cmd.scaledMeterValue, unit: "kWh")
-        }
-	} else if (cmd.scale == 1) {
-		event = createEvent(name: "amperage", value: cmd.scaledMeterValue, unit: "A")
-	} else if (cmd.scale == 2) {
-		event = createEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
-	}
-
-    return event
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
