@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2019-11-16
+ *  Date: 2019-11-20
  *
  *  Copyright 2019 Eric Maycock / Inovelli
  *
@@ -339,7 +339,7 @@ def childOn(String dni) {
     if(channelNumber(dni).toInteger() <= 5) {
         toggleTiles("${channelNumber(dni)}", "on")
         cmds << new physicalgraph.device.HubAction(command(setParameter(16, calculateParameter("16-${channelNumber(dni)}"), 4)))
-        return cmds
+        sendHubCommand(cmds, 1000)
     } else {
         childSetLevel(dni, 99)
     }
@@ -352,7 +352,7 @@ def childOff(String dni) {
     if(channelNumber(dni).toInteger() <= 5) {
         toggleTiles("${channelNumber(dni)}", "off")
         cmds << new physicalgraph.device.HubAction(command(setParameter(16, 0, 4)))
-        return cmds
+        sendHubCommand(cmds, 1000)
     } else {
         childSetLevel(dni, 0)
     }
@@ -385,6 +385,7 @@ def configure() {
 def updated() {
     if (!state.lastRan || now() >= state.lastRan + 2000) {
         if (infoEnable) log.info "${device.label?device.label:device.name}: updated()"
+        if (debugEnable || infoEnable) runIn(1800,logsOff)
         state.lastRan = now()
         def cmds = initialize()
         if (cmds != [])
@@ -394,7 +395,6 @@ def updated() {
     } else {
         if (infoEnable) log.info "${device.label?device.label:device.name}: updated() ran within the last 2 seconds. Skipping execution."
     }
-    if (debugEnable || infoEnable) runIn(1800,logsOff)
 }
 
 def initialize() {
