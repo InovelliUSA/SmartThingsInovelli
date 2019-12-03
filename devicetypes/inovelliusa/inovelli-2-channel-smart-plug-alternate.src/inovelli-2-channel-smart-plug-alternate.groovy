@@ -68,9 +68,22 @@ metadata {
 
     }
 }
+
+private getCommandClassVersions() {
+	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1]
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
+    def encapsulatedCommand = cmd.encapsulatedCommand(commandClassVersions)
+    if (encapsulatedCommand) {
+        state.sec = 1
+        zwaveEvent(encapsulatedCommand)
+    }
+}
+
 def parse(String description) {
     def result = []
-    def cmd = zwave.parse(description)
+    def cmd = zwave.parse(description, commandClassVersions)
     if (cmd) {
         result += zwaveEvent(cmd)
         logging("Parsed ${cmd} to ${result.inspect()}", 1)
