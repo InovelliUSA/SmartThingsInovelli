@@ -74,7 +74,7 @@ metadata {
         }
         
         valueTile("info", "device.info", inactiveLabel: false, decoration: "flat", width: 3, height: 1) {
-            state "default", label: 'Tap on the ▲▲ button below to test your scene'
+            state "default", label: 'Tap on the ▲▲▲▲ button below to test your scene'
         }
         
         valueTile("icon", "device.icon", inactiveLabel: false, decoration: "flat", width: 2, height: 1) {
@@ -86,7 +86,7 @@ metadata {
         }
         
         standardTile("pressUpX2", "device.button", width: 6, height: 1, decoration: "flat") {
-            state "default", label: "Tap ▲▲", backgroundColor: "#ffffff", action: "pressUpX2"
+            state "default", label: "Tap ▲▲▲▲", backgroundColor: "#ffffff", action: "pressUpX2"
         }
     }
 }
@@ -97,7 +97,7 @@ def installed() {
 
 def updated() {
     sendEvent(name: "checkInterval", value: 3 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
-    sendEvent(name: "numberOfButtons", value: 6, displayed: true)
+    sendEvent(name: "numberOfButtons", value: 1, displayed: true)
     def cmds = []
     cmds << zwave.versionV1.versionGet()
     cmds << zwave.associationV2.associationSet(groupingIdentifier: 1, nodeId: zwaveHubNodeId)
@@ -111,13 +111,25 @@ def updated() {
     response(commands(cmds))
 }
 
+private getCommandClassVersions() {
+	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1]
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
+    def encapsulatedCommand = cmd.encapsulatedCommand(commandClassVersions)
+    if (encapsulatedCommand) {
+        state.sec = 1
+        zwaveEvent(encapsulatedCommand)
+    }
+}
+
 def parse(description) {
     def result = null
     if (description.startsWith("Err 106")) {
         state.sec = 0
         result = createEvent(descriptionText: description, isStateChange: true)
     } else if (description != "updated") {
-        def cmd = zwave.parse(description, [0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1])
+        def cmd = zwave.parse(description, commandClassVersions)
         if (cmd) {
             result = zwaveEvent(cmd)
             log.debug("'$description' parsed to $result")
@@ -172,20 +184,12 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
     }
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
-    def encapsulatedCommand = cmd.encapsulatedCommand([0x20: 1, 0x25: 1])
-    if (encapsulatedCommand) {
-        state.sec = 1
-        zwaveEvent(encapsulatedCommand)
-    }
-}
-
 def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
     createEvent(buttonEvent(cmd.sceneNumber, (cmd.sceneNumber == 2? "held" : "pushed"), "physical"))
 }
 
 def buttonEvent(button, value, type = "digital") {
-    sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Tap '.padRight(button+1+5, '▼'):' Tap '.padRight(button+1+5, '▲')}", displayed:false)
+    sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Tap '.padRight(button+1+7, '▼'):' Tap '.padRight(button+1+7, '▲')}", displayed:false)
     [name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true, type: type]
 }
 
@@ -253,5 +257,5 @@ private commands(commands, delay=500) {
 }
 
 def pressUpX2() {
-    sendEvent(buttonEvent(2, "pushed"))
+    sendEvent(buttonEvent(1, "pushed"))
 }
