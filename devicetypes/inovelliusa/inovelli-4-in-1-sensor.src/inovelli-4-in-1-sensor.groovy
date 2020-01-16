@@ -25,13 +25,13 @@
 
  metadata {
 	definition (name: "Inovelli 4-in-1 Sensor", namespace: "InovelliUSA", author: "Eric Maycock", vid:"generic-motion-7") {
-		capability "Motion Sensor"
-		capability "Temperature Measurement"
-		capability "Relative Humidity Measurement"
-		capability "Illuminance Measurement"
-		capability "Configuration"
-		capability "Sensor"
-		capability "Battery"
+        capability "Motion Sensor"
+        capability "Temperature Measurement"
+        capability "Relative Humidity Measurement"
+        capability "Illuminance Measurement"
+        capability "Configuration"
+        capability "Sensor"
+        capability "Battery"
         capability "Refresh"
         //capability "Health Check"
         
