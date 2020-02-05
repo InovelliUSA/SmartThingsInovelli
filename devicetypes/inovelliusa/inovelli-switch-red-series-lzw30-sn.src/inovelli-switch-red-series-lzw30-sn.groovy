@@ -1,9 +1,9 @@
 /**
  *  Inovelli Switch Red Series
  *  Author: Eric Maycock (erocm123)
- *  Date: 2019-10-10
+ *  Date: 2020-02-05
  *
- *  Copyright 2019 Eric Maycock / Inovelli
+ *  Copyright 2020 Eric Maycock / Inovelli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -14,8 +14,14 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  2019-10-10: Ability to create child devices for local & rf protection to use in various automations.
- * 
+ *  2020-02-05: Fix for LED turning off after 3 seconds when LED intensity (when off) is set to 0.
+ *              Extra button event added for those that want to distinguish held vs pushed. 
+ *              Button 8 pushed = Up button held. Button 8 held = Down button held.
+ *              Button 6 pushed = Up button released. Button 6 pushed = Down button released. 
+ *
+ *  2019-10-15: Ability to create child devices for local & rf protection to use in various automations.
+ *              Device label is now displayed in logging. 
+ *
  *  2019-10-01: Adding the ability to set a custom color for the RGB indicator. Use a hue 360 color wheel.
  *              Adding the ability to enable z-wave "rf protection" to disable control from z-wave commands.
  *
@@ -279,11 +285,11 @@ void childSetLevel(String dni, value) {
     def cmds = []
     switch (channelNumber(dni)) {
         case 101:
-            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : level > 0 ? 2 : 0, rfProtectionState: state.rfProtectionState? state.rfProtectionState:0) ))
+            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : level > 0 ? 1 : 0, rfProtectionState: state.rfProtectionState? state.rfProtectionState:0) ))
             cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionGet() ))
         break
         case 102:
-            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : state.localProtectionState? state.localProtectionState:0, rfProtectionState : level > 0 ? 2 : 0) ))
+            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : state.localProtectionState? state.localProtectionState:0, rfProtectionState : level > 0 ? 1 : 0) ))
             cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionGet() ))
         break
     }
@@ -370,7 +376,7 @@ def updated() {
 
 def initialize() {
     sendEvent(name: "checkInterval", value: 3 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
-    sendEvent(name: "numberOfButtons", value: 7, displayed: true)
+    sendEvent(name: "numberOfButtons", value: 8, displayed: true)
     
     if (enableDisableLocalChild && !childExists("ep101")) {
     try {
@@ -464,6 +470,11 @@ def initialize() {
       else {
           //if (infoEnable) log.info "${device.label?device.label:device.name}: Parameter already set"
       }
+    }
+    
+    if (state."parameter9value" != 0){
+        cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: 0, parameterNumber: 9, size: 1)
+        cmds << zwave.configurationV1.configurationGet(parameterNumber: 9)
     }
     
     cmds << zwave.versionV1.versionGet()
@@ -560,7 +571,7 @@ def getParameterInfo(number, type){
     parameter.parameter2options=["1":"Yes", "0":"No"]
     parameter.parameter3options="1..32767"
     parameter.parameter4options="0..15"
-    parameter.parameter5options=["0":"Red","21":"Orange","42":"Yellow","85":"Green","127":"Cyan","170":"Blue","212":"Violet","234":"Pink","256":"Custom"]
+    parameter.parameter5options=["0":"Red","21":"Orange","42":"Yellow","85":"Green","127":"Cyan","170":"Blue","212":"Violet","234":"Pink"]
     parameter.parameter6options=["0":"0%","1":"10%","2":"20%","3":"30%","4":"40%","5":"50%","6":"60%","7":"70%","8":"80%","9":"90%","10":"100%"]
     parameter.parameter7options=["0":"0%","1":"10%","2":"20%","3":"30%","4":"40%","5":"50%","6":"60%","7":"70%","8":"80%","9":"90%","10":"100%"]
     parameter.parameter8options=["1":"Yes", "2":"No"]
@@ -676,7 +687,7 @@ def integer2Cmd(value, size) {
 }
 
 private getCommandClassVersions() {
-	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1, 0x32: 3]
+	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1, 0x32: 3, 0x5B: 1]
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
@@ -739,7 +750,7 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
        createEvent(buttonEvent(6, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
        break
        case 2:
-       null
+       createEvent(buttonEvent(8, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
        break
        default:
        createEvent(buttonEvent(cmd.keyAttributes - 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
@@ -949,10 +960,15 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationGroupingsRe
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
     if(cmd.applicationVersion != null && cmd.applicationSubVersion != null) {
 	    def firmware = "${cmd.applicationVersion}.${cmd.applicationSubVersion.toString().padLeft(2,'0')}"
         if (infoEnable) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
+        state.needfwUpdate = "false"
+        createEvent(name: "firmware", value: "${firmware}")
+    } else if(cmd.firmware0Version != null && cmd.firmware0SubVersion != null) {
+	    def firmware = "${cmd.firmware0Version}.${cmd.firmware0SubVersion.toString().padLeft(2,'0')}"
+        if (infoEnable != false) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
         state.needfwUpdate = "false"
         createEvent(name: "firmware", value: "${firmware}")
     }
