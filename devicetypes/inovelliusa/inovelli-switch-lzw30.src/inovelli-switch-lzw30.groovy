@@ -3,7 +3,7 @@
  *  Author: Eric Maycock (erocm123)
  *  Date: 2020-02-06
  *
- *  Copyright 2019 Eric Maycock / Inovelli
+ *  Copyright 2020 Eric Maycock / Inovelli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -15,6 +15,7 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  *  2020-02-06: Fix for remote control child device being created when it shouldn't be.
+ *              Fix for local protection being updated via hub after being changed with config button.
  *
  *  2020-02-05: Fix for LED turning off after 3 seconds when LED intensity (when off) is set to 0.
  *              Extra button event added for those that want to distinguish held vs pushed. 
@@ -197,7 +198,7 @@ void childOff(String dni) {
         cmds << new physicalgraph.device.HubAction(command(setParameter(8, 0, 4)) )
         sendHubCommand(cmds, 1000)
     } else {
-        childSetLevel(dni, 99)
+        childSetLevel(dni, 0)
     }
 }
 
@@ -311,9 +312,12 @@ def initialize() {
     
     cmds << zwave.versionV1.versionGet()
     
-    if (state.localProtectionState != settings.disableLocal || state.rfProtectionState != settings.disableRemote) {
+    if (state.localProtectionState?.toInteger() != settings.disableLocal?.toInteger() || state.rfProtectionState?.toInteger() != settings.disableRemote?.toInteger()) {
+        if (infoEnable) log.info "${device.label?device.label:device.name}: Protection command class settings need to be updated"
         cmds << zwave.protectionV2.protectionSet(localProtectionState : disableLocal!=null? disableLocal.toInteger() : 0, rfProtectionState: disableRemote!=null? disableRemote.toInteger() : 0)
         cmds << zwave.protectionV2.protectionGet()
+    } else {
+        if (infoEnable) log.info "${device.label?device.label:device.name}: No Protection command class settings to update"
     }
     
     if (cmds != []) return cmds else return []
@@ -697,8 +701,12 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
 def zwaveEvent(physicalgraph.zwave.commands.protectionv2.ProtectionReport cmd) {
     if (debugEnable) log.debug "${device.label?device.label:device.name}: ${device.label?device.label:device.name}: ${cmd}"
     if (infoEnable) log.info "${device.label?device.label:device.name}: Protection report received: Local protection is ${cmd.localProtectionState > 0 ? "on" : "off"} & Remote protection is ${cmd.rfProtectionState > 0 ? "on" : "off"}"
-    state.localProtectionState = cmd.localProtectionState
-    state.rfProtectionState = cmd.rfProtectionState
+    if (!state.lastRan || now() <= state.lastRan + 60000) {
+        state.localProtectionState = cmd.localProtectionState
+        state.rfProtectionState = cmd.rfProtectionState
+    } else {
+        if (infoEnable) log.debug "${device.label?device.label:device.name}: Protection report received more than 60 seconds after running updated(). Possible configuration made at switch"
+    }
     //device.updateSetting("disableLocal",[value:cmd.localProtectionState?cmd.localProtectionState:0,type:"enum"])
     //device.updateSetting("disableRemote",[value:cmd.rfProtectionState?cmd.rfProtectionState:0,type:"enum"])
     def children = childDevices
