@@ -1,7 +1,7 @@
 /**
  *  Inovelli Switch LZW30
  *  Author: Eric Maycock (erocm123)
- *  Date: 2019-10-15
+ *  Date: 2020-02-06
  *
  *  Copyright 2019 Eric Maycock / Inovelli
  *
@@ -14,8 +14,16 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  2019-10-10: Ability to create child devices for local & rf protection to use in various automations.
- * 
+ *  2020-02-06: Fix for remote control child device being created when it shouldn't be.
+ *
+ *  2020-02-05: Fix for LED turning off after 3 seconds when LED intensity (when off) is set to 0.
+ *              Extra button event added for those that want to distinguish held vs pushed. 
+ *              Button 8 pushed = Up button held. Button 8 held = Down button held.
+ *              Button 6 pushed = Up button released. Button 6 pushed = Down button released. 
+ *
+ *  2019-10-15: Ability to create child devices for local & rf protection to use in various automations.
+ *              Device label is now displayed in logging. 
+ *
  *  2019-10-01: Adding the ability to set a custom color for the RGB indicator. Use a hue 360 color wheel.
  *              Adding the ability to enable z-wave "rf protection" to disable control from z-wave commands.
  *
@@ -142,11 +150,11 @@ void childSetLevel(String dni, value) {
     def cmds = []
     switch (channelNumber(dni)) {
         case 101:
-            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : level > 0 ? 2 : 0, rfProtectionState: state.rfProtectionState? state.rfProtectionState:0) ))
+            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : level > 0 ? 1 : 0, rfProtectionState: state.rfProtectionState? state.rfProtectionState:0) ))
             cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionGet() ))
         break
         case 102:
-            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : state.localProtectionState? state.localProtectionState:0, rfProtectionState : level > 0 ? 2 : 0) ))
+            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : state.localProtectionState? state.localProtectionState:0, rfProtectionState : level > 0 ? 1 : 0) ))
             cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionGet() ))
         break
     }
@@ -253,7 +261,7 @@ def initialize() {
             runIn(3, "sendAlert", [data: [message: "Failed to delete child device. Make sure the device is not in use by any SmartApp."]])
         }
     }
-    if (enableDisableLocalChild && !childExists("ep102")) {
+    if (enableDisableRemoteChild && !childExists("ep102")) {
     try {
         addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep102", null,
                 [completedSetup: true, label: "${device.displayName} (Disable Remote Control)",
@@ -261,7 +269,7 @@ def initialize() {
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
-    } else if (!enableDisableLocalChild && childExists("ep102")) {
+    } else if (!enableDisableRemoteChild && childExists("ep102")) {
         if (infoEnable) log.info "${device.label?device.label:device.name}: Trying to delete child device ep101. If this fails it is likely that there is a SmartApp using the child device in question."
         def children = childDevices
         def childDevice = children.find{it.deviceNetworkId.endsWith("ep102")}
@@ -294,6 +302,11 @@ def initialize() {
       else {
           //if (infoEnable) log.info "${device.label?device.label:device.name}: Parameter already set"
       }
+    }
+    
+    if (state."parameter9value" != 0){
+        cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: 0, parameterNumber: 9, size: 1)
+        cmds << zwave.configurationV1.configurationGet(parameterNumber: 9)
     }
     
     cmds << zwave.versionV1.versionGet()
@@ -671,6 +684,11 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
     if(cmd.applicationVersion != null && cmd.applicationSubVersion != null) {
 	    def firmware = "${cmd.applicationVersion}.${cmd.applicationSubVersion.toString().padLeft(2,'0')}"
         if (infoEnable) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
+        state.needfwUpdate = "false"
+        createEvent(name: "firmware", value: "${firmware}")
+    } else if(cmd.firmware0Version != null && cmd.firmware0SubVersion != null) {
+	    def firmware = "${cmd.firmware0Version}.${cmd.firmware0SubVersion.toString().padLeft(2,'0')}"
+        if (infoEnable != false) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
         state.needfwUpdate = "false"
         createEvent(name: "firmware", value: "${firmware}")
     }
