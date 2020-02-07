@@ -1,9 +1,9 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2019-11-20
+ *  Date: 2020-02-06
  *
- *  Copyright 2019 Eric Maycock / Inovelli
+ *  Copyright 2020 Eric Maycock / Inovelli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -13,6 +13,12 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-02-06: Fix for remote control child device being created when it shouldn't be.
+ *
+ *  2020-02-05: Extra button event added for those that want to distinguish held vs pushed. 
+ *              Button 8 pushed = Up button held. Button 8 held = Down button held.
+ *              Button 6 pushed = Up button released. Button 6 pushed = Down button released. 
  *
  *  2019-11-16: Ability to choose custom LED bar color. Child devices to control default level (local & z-wave),
  *              local & remote protection. Ability to turn on / off info & debug logging. Additional logging added.
@@ -428,7 +434,7 @@ def initialize() {
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
-    } else if (!enableDefaultLocalChild && childExists("ep10")) {
+    } else if (!enableDefaultZWaveChild && childExists("ep10")) {
         if (infoEnable) log.info "Trying to delete child device ep10. If this fails it is likely that there is a SmartApp using the child device in question."
         def children = childDevices
         def childDevice = children.find{it.deviceNetworkId.endsWith("ep10")}
@@ -467,7 +473,7 @@ def initialize() {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
     } else if (!enableDisableRemoteChild && childExists("ep102")) {
-        if (infoEnable) log.info "${device.label?device.label:device.name}: Trying to delete child device ep101. If this fails it is likely that there is a SmartApp using the child device in question."
+        if (infoEnable) log.info "${device.label?device.label:device.name}: Trying to delete child device ep102. If this fails it is likely that there is a SmartApp using the child device in question."
         def children = childDevices
         def childDevice = children.find{it.deviceNetworkId.endsWith("ep102")}
         try {
@@ -502,23 +508,32 @@ def initialize() {
     if (device.label != state.oldLabel) {
         def children = childDevices
         def childDevice = children.find{it.deviceNetworkId.endsWith("ep1")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Notification 1)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Notification 1)")
         childDevice = children.find{it.deviceNetworkId.endsWith("ep2")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Notification 2)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Notification 2)")
         childDevice = children.find{it.deviceNetworkId.endsWith("ep3")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Notification 3)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Notification 3)")
         childDevice = children.find{it.deviceNetworkId.endsWith("ep4")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Notification 4)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Notification 4)")
         childDevice = children.find{it.deviceNetworkId.endsWith("ep5")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Notification 5)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Notification 5)")
         childDevice = children.find{it.deviceNetworkId.endsWith("ep9")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Default Local Level)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Default Local Level)")
         childDevice = children.find{it.deviceNetworkId.endsWith("ep10")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Default Z-Wave Level)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Default Z-Wave Level)")
         childDevice = children.find{it.deviceNetworkId.endsWith("ep101")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Disable Local Control)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Disable Local Control)")
         childDevice = children.find{it.deviceNetworkId.endsWith("ep102")}
-        if (childDevice) childDevice.setLabel("${device.displayName} (Disable Remote Control)")
+        if (childDevice)
+        childDevice.setLabel("${device.displayName} (Disable Remote Control)")
         state.oldLabel = device.label
     }
     
@@ -541,20 +556,23 @@ def initialize() {
     
     getParameterNumbers().each{ i ->
       if ((state."parameter${i}value" != ((settings."parameter${i}"!=null||calculateParameter(i)!=null)? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()))){
-          if (infoEnable) log.info "Parameter $i is not set correctly. Setting it to ${settings."parameter${i}"!=null? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()}."
+          //if (infoEnable) log.info "Parameter $i is not set correctly. Setting it to ${settings."parameter${i}"!=null? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()}."
           cmds << setParameter(i, (settings."parameter${i}"!=null||calculateParameter(i)!=null)? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger(), getParameterInfo(i, "size").toInteger())
           cmds << getParameter(i)
       }
       else {
-          if (infoEnable) log.info "${device.label?device.label:device.name}: Parameter $i already set"
+          //if (infoEnable) log.info "${device.label?device.label:device.name}: Parameter $i already set"
       }
     }
     
     cmds << zwave.versionV1.versionGet()
     
-    if (state.localProtectionState != settings.disableLocal || state.rfProtectionState != settings.disableRemote) {
+    if (state.localProtectionState?.toInteger() != settings.disableLocal?.toInteger() || state.rfProtectionState?.toInteger() != settings.disableRemote?.toInteger()) {
+        if (infoEnable) log.info "${device.label?device.label:device.name}: Protection command class settings need to be updated"
         cmds << zwave.protectionV2.protectionSet(localProtectionState : disableLocal!=null? disableLocal.toInteger() : 0, rfProtectionState: disableRemote!=null? disableRemote.toInteger() : 0)
         cmds << zwave.protectionV2.protectionGet()
+    } else {
+        if (infoEnable) log.info "${device.label?device.label:device.name}: No Protection command class settings to update"
     }
 
     if (cmds != []) return cmds else return []
@@ -839,7 +857,7 @@ def integer2Cmd(value, size) {
 }
 
 private getCommandClassVersions() {
-	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1, 0x32: 3]
+	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1, 0x32: 3, 0x5B: 1]
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
@@ -876,8 +894,6 @@ def parse(description) {
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
     if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
     if (infoEnable) log.info "${device.label?device.label:device.name}: Basic report received with value of ${cmd.value ? "on" : "off"} ($cmd.value)"
-    // Since SmartThings isn't filtering duplicate events, we are skipping these
-    // Switch is sending SwitchMultilevelReport as well (which we will use)
     dimmerEvents(cmd)
 }
 
@@ -1154,12 +1170,18 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
         if (infoEnable) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
         state.needfwUpdate = "false"
         createEvent(name: "firmware", value: "${firmware}")
+    } else if(cmd.firmware0Version != null && cmd.firmware0SubVersion != null) {
+	    def firmware = "${cmd.firmware0Version}.${cmd.firmware0SubVersion.toString().padLeft(2,'0')}"
+        if (infoEnable != false) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
+        state.needfwUpdate = "false"
+        createEvent(name: "firmware", value: "${firmware}")
     }
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.protectionv2.ProtectionReport cmd) {
     if (debugEnable) log.debug "${device.label?device.label:device.name}: ${device.label?device.label:device.name}: ${cmd}"
     if (infoEnable) log.info "${device.label?device.label:device.name}: Protection report received: Local protection is ${cmd.localProtectionState > 0 ? "on" : "off"} & Remote protection is ${cmd.rfProtectionState > 0 ? "on" : "off"}"
+    log.debug state.lastRun
     if (!state.lastRan || now() <= state.lastRan + 60000) {
         state.localProtectionState = cmd.localProtectionState
         state.rfProtectionState = cmd.rfProtectionState
