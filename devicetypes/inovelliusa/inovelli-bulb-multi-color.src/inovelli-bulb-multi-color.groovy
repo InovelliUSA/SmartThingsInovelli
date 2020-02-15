@@ -294,7 +294,7 @@ def setLevel(level, duration) {
 	log.debug "setLevel($level, $duration)"
 	if(level > 99) level = 99
 	commands([
-		zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: duration)
+		zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: duration)
 	], 5000)
 }
 
