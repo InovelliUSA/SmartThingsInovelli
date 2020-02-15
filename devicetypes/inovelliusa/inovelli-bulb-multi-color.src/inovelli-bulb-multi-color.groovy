@@ -13,7 +13,7 @@
  *  Inovelli Bulb Multi-Color
  *
  *  Author: Eric Maycock
- *  Date: 2019-9-9
+ *  Date: 2020-02-15
  */
 
 metadata {
@@ -96,6 +96,7 @@ def logsOff(){
 def updated() {
 	log.debug "updated().."
     if (!state.powerStateMem) initializeVars()
+    if (!state.bulbMemory) initializeVars()
 	if (state.powerStateMem.toInteger() != bulbMemory.toInteger()) device.configure() 
 	if (logEnable) runIn(1800,logsOff)
 	response(refresh())
@@ -103,7 +104,7 @@ def updated() {
 
 def installed() {
 	log.debug "installed()..."
-	state.colorReceived = [RED: null, GREEN: null, BLUE: null, WARM_WHITE: null, COLD_WHITE: null]
+	initializeVars()
 	sendEvent(name: "checkInterval", value: 1860, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "0"])
 	sendEvent(name: "level", value: 100, unit: "%")
 	sendEvent(name: "colorTemperature", value: COLOR_TEMP_MIN)
@@ -129,7 +130,7 @@ def parse(description) {
 	if (description != "updated") {
         def cmd
         try {
-		    cmd = zwave.parse(description,[0x33:2,0x26:2,0x86:2,0x70:1])
+		    cmd = zwave.parse(description,[0x33:2,0x26:2,0x86:1,0x70:1])
         } catch (e) {
             log.debug "An exception was caught $e"
         }
@@ -155,17 +156,17 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
 	if (logEnable) log.debug "got version report"
     // st doesn't support v2 this will need work
-	BigDecimal fw = cmd.firmware0Version + (cmd.firmware0SubVersion / 100)
+	def fw = cmd.applicationVersion + (cmd.applicationSubVersion / 100)
 	state.firmware = fw
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv2.SwitchMultilevelReport cmd) {
     log.debug cmd
 	unschedule(offlinePing)
 	dimmerEvents(cmd)
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.switchcolorv3.SwitchColorReport cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.switchcolorv2.SwitchColorReport cmd) {
 	if (!state.colorReceived) initializeVars()
 	if (logEnable) log.debug "got SwitchColorReport: $cmd"
 	state.colorReceived[cmd.colorComponent] = cmd.value
@@ -178,13 +179,14 @@ def zwaveEvent(physicalgraph.zwave.commands.switchcolorv3.SwitchColorReport cmd)
 		def hexColor = "#" + colors.collect { Integer.toHexString(it).padLeft(2, "0") }.join("")
 		result << createEvent(name: "color", value: hexColor)
 		// Send the color as hue and saturation
-		def hsv = colorUtil.rgbToHSV(colors)
-		result << createEvent(name: "hue", value: hsv[0].round())
-		result << createEvent(name: "saturation", value: hsv[1].round())
-		
+		def hsv = colorUtil.hexToHsv(hexColor)
+		result << createEvent(name: "hue", value: Math.round(hsv[0]))
+		result << createEvent(name: "saturation", value: Math.round(hsv[1]))
+		result << createEvent(name: "color", value: hexColor)
+        
 		if ((hsv[0] > 0) && (hsv[1] > 0)) {
 			setGenericName(hsv[0])
-			result << createEvent(name: "level", value: hsv[2].round())
+			result << createEvent(name: "level", value: Math.round(hsv[2]))
 		}
 		// Reset the values
 		RGB_NAMES.collect { state.colorReceived[it] = null}
@@ -226,7 +228,7 @@ def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulat
 	}
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
 	log.debug "got ConfigurationReport: $cmd"
 	def result = null
 	if (cmd.parameterNumber == WARM_WHITE_CONFIG || cmd.parameterNumber == COLD_WHITE_CONFIG)
@@ -269,19 +271,19 @@ def off() {
 }
 
 def refresh() {
-	commands([zwave.switchMultilevelV3.switchMultilevelGet()] + queryAllColors())
+	commands([zwave.switchMultilevelV2.switchMultilevelGet()] + queryAllColors())
 }
 
 def ping() {
 	log.debug "ping().."
 	unschedule(offlinePing)
 	runEvery30Minutes(offlinePing)
-	command(zwave.switchMultilevelV3.switchMultilevelGet())
+	command(zwave.switchMultilevelV2.switchMultilevelGet())
 }
 
 def offlinePing() {
 	log.debug "offlinePing()..."
-	sendHubCommand(new physicalgraph.device.HubAction(command(zwave.switchMultilevelV3.switchMultilevelGet())))
+	sendHubCommand(new physicalgraph.device.HubAction(command(zwave.switchMultilevelV2.switchMultilevelGet())))
 }
 
 def setLevel(level) {
@@ -292,8 +294,7 @@ def setLevel(level, duration) {
 	log.debug "setLevel($level, $duration)"
 	if(level > 99) level = 99
 	commands([
-		zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: duration)//,
-		//zwave.switchMultilevelV3.switchMultilevelGet(),
+		zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: duration)
 	], 5000)
 }
 
@@ -308,14 +309,15 @@ def setHue(value) {
 }
 
 def setColor(value) {
+	RGB_NAMES.collect { state.colorReceived[it] = null}
 	log.debug "setColor($value)"
 	def result = []
 	if (value.hex) {
 		def c = value.hex.findAll(/[0-9a-fA-F]{2}/).collect { Integer.parseInt(it, 16) }
-		result << zwave.switchColorV3.switchColorSet(red: c[0], green: c[1], blue: c[2], warmWhite: 0, coldWhite: 0)
+		result << zwave.switchColorV2.switchColorSet(red: c[0], green: c[1], blue: c[2], warmWhite: 0, coldWhite: 0)
 	} else {
 		def rgb = huesatToRGB(value.hue, value.saturation)
-		result << zwave.switchColorV3.switchColorSet(red: rgb[0], green: rgb[1], blue: rgb[2], warmWhite:0, coldWhite:0)
+		result << zwave.switchColorV2.switchColorSet(red: rgb[0], green: rgb[1], blue: rgb[2], warmWhite:0, coldWhite:0)
 	}
     if (device.currentValue("switch") != "on") {
         log.debug "Bulb is off. Turning on"
@@ -325,12 +327,13 @@ def setColor(value) {
 }
 
 def setColorTemperature(temp) {
+	WHITE_NAMES.collect { state.colorReceived[it] = null }
 	log.debug "setColorTemperature($temp)"
 	def warmValue = temp < 5000 ? 255 : 0
 	def coldValue = temp >= 5000 ? 255 : 0
 	def parameterNumber = temp < 5000 ? WARM_WHITE_CONFIG : COLD_WHITE_CONFIG
 	def cmds = [zwave.configurationV1.configurationSet([parameterNumber: parameterNumber, size: 2, scaledConfigurationValue: temp]),
-				zwave.switchColorV3.switchColorSet(red: 0, green: 0, blue: 0, warmWhite: warmValue, coldWhite: coldValue)]
+				zwave.switchColorV2.switchColorSet(red: 0, green: 0, blue: 0, warmWhite: warmValue, coldWhite: coldValue)]
                 
     if (device.currentValue("switch") != "on") {
         log.debug "Bulb is off. Turning on"
@@ -341,7 +344,7 @@ def setColorTemperature(temp) {
 
 private queryAllColors() {
 	def colors = WHITE_NAMES + RGB_NAMES
-	[zwave.basicV1.basicGet()] + colors.collect { zwave.switchColorV3.switchColorGet(colorComponent: it) }
+	[zwave.basicV1.basicGet()] + colors.collect { zwave.switchColorV2.switchColorGet(colorComponent: it) }
 }
 
 private secEncap(physicalgraph.zwave.Command cmd) {
