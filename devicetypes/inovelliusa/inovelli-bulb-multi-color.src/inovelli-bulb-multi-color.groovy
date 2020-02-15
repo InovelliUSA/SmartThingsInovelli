@@ -231,8 +231,13 @@ def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulat
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
 	log.debug "got ConfigurationReport: $cmd"
 	def result = null
-	if (cmd.parameterNumber == WARM_WHITE_CONFIG || cmd.parameterNumber == COLD_WHITE_CONFIG)
+	if (cmd.parameterNumber == WARM_WHITE_CONFIG || cmd.parameterNumber == COLD_WHITE_CONFIG) {
 		result = createEvent(name: "colorTemperature", value: cmd.scaledConfigurationValue)
+        setGenericTempName(cmd.scaledConfigurationValue)
+    }
+    if (cmd.parameterNumber == 0x02) {
+		state.powerStateMem = cmd.scaledConfigurationValue
+    }
 	result
 }
 

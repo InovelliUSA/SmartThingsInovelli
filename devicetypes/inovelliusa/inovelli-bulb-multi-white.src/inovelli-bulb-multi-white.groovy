@@ -184,8 +184,13 @@ def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulat
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
 	log.debug "got ConfigurationReport: $cmd"
 	def result = null
-	if (cmd.parameterNumber == WARM_WHITE_CONFIG || cmd.parameterNumber == COLD_WHITE_CONFIG)
+	if (cmd.parameterNumber == WARM_WHITE_CONFIG || cmd.parameterNumber == COLD_WHITE_CONFIG) {
 		result = createEvent(name: "colorTemperature", value: cmd.scaledConfigurationValue)
+        setGenericTempName(cmd.scaledConfigurationValue)
+    }
+    if (cmd.parameterNumber == 0x02) {
+		state.powerStateMem = cmd.scaledConfigurationValue
+    }
 	result
 }
 
@@ -356,4 +361,25 @@ def processAssociations(){
       }
    }
    return cmds
+}
+
+def setGenericTempName(temp){
+    if (!temp) return
+    def genericName
+    def value = temp.toInteger()
+    if (value <= 2000) genericName = "Sodium"
+    else if (value <= 2100) genericName = "Starlight"
+    else if (value < 2400) genericName = "Sunrise"
+    else if (value < 2800) genericName = "Incandescent"
+    else if (value < 3300) genericName = "Soft White"
+    else if (value < 3500) genericName = "Warm White"
+    else if (value < 4150) genericName = "Moonlight"
+    else if (value <= 5000) genericName = "Horizon"
+    else if (value < 5500) genericName = "Daylight"
+    else if (value < 6000) genericName = "Electronic"
+    else if (value <= 6500) genericName = "Skylight"
+    else if (value < 20000) genericName = "Polar"
+    def descriptionText = "${device.getDisplayName()} color is ${genericName}"
+    if (txtEnable) log.info "${descriptionText}"
+    sendEvent(name: "colorName", value: genericName ,descriptionText: descriptionText)
 }
