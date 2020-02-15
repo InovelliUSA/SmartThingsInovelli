@@ -19,6 +19,7 @@
 metadata {
 	definition (name: "Inovelli Bulb Multi-Color", namespace: "InovelliUSA", author: "erocm123", ocfDeviceType: "oic.d.light", vid: "generic-rgbw-color-bulb") {
 		capability "Switch Level"
+        capability "Color Mode"
 		capability "Color Control"
 		capability "Color Temperature"
 		capability "Switch"
@@ -27,6 +28,9 @@ metadata {
 		capability "Sensor"
 		capability "Health Check"
 		capability "Configuration"
+        
+        attribute "colorName", "string"
+        attribute "firmware", "number"
 
         fingerprint mfr: "031E", prod: "0005", model: "0001", deviceJoinName: "Inovelli Bulb Multi-Color"
         fingerprint deviceId: "0x1101", inClusters: "0x5E,0x85,0x59,0x86,0x72,0x5A,0x33,0x26,0x70,0x27,0x98,0x73,0x7A"
@@ -54,6 +58,11 @@ metadata {
 			}
 		}
 	}
+	preferences {
+			input name: "colorStaging", type: "bool", description: "", title: "Enable color pre-staging", defaultValue: false
+			input name: "logEnable", type: "bool", description: "", title: "Enable Debug Logging", defaultVaule: true
+			input name: "bulbMemory", type: "enum", title: "Power outage state", options: [0:"Remembers Last State",1:"Bulb turns ON",2:"Bulb turns OFF"], defaultValue: 0
+	}
 
 	controlTile("colorTempSliderControl", "device.colorTemperature", "slider", width: 4, height: 2, inactiveLabel: false, range:"(2700..6500)") {
 		state "colorTemperature", action:"color temperature.setColorTemperature"
@@ -77,9 +86,18 @@ private getWARM_WHITE() { "warmWhite" }
 private getCOLD_WHITE() { "coldWhite" }
 private getRGB_NAMES() { [RED, GREEN, BLUE] }
 private getWHITE_NAMES() { [WARM_WHITE, COLD_WHITE] }
+private getZWAVE_COLOR_COMPONENT_ID() { [warmWhite: 0, coldWhite: 1, red: 2, green: 3, blue: 4] }
+
+def logsOff(){
+    log.warn "debug logging disabled..."
+    device.updateSetting("logEnable",[value:"false",type:"bool"])
+}
 
 def updated() {
 	log.debug "updated().."
+    if (!state.powerStateMem) initializeVars()
+	if (state.powerStateMem.toInteger() != bulbMemory.toInteger()) device.configure() 
+	if (logEnable) runIn(1800,logsOff)
 	response(refresh())
 }
 
@@ -94,22 +112,32 @@ def installed() {
 	sendEvent(name: "saturation", value: 0)
 }
 
+def initializeVars() {
+	if (!state.colorReceived) state.colorReceived = [red: null, green: null, blue: null, warmWhite: null, coldWhite: null]
+	if (!state.powerStateMem) state.powerStateMem=0
+}
+
 def configure() {
-	commands([
-		// Set the dimming ramp rate
-		zwave.configurationV2.configurationSet(parameterNumber: 0x10, size: 1, scaledConfigurationValue: 5)
-	])
+	def cmds = []
+	cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: bulbMemory.toInteger(), parameterNumber: 2, size:1])
+	cmds << zwave.configurationV1.configurationGet([parameterNumber: 2])
+	commands(cmds)
 }
 
 def parse(description) {
 	def result = null
 	if (description != "updated") {
-		def cmd = zwave.parse(description)
+        def cmd
+        try {
+		    cmd = zwave.parse(description,[0x33:2,0x26:2,0x86:2,0x70:1])
+        } catch (e) {
+            log.debug "An exception was caught $e"
+        }
 		if (cmd) {
 			result = zwaveEvent(cmd)
-			log.debug("'$description' parsed to $result")
+			if (logEnable) log.debug("'$description' parsed to $result")
 		} else {
-			log.debug("Couldn't zwave.parse '$description'")
+			if (logEnable) log.debug("Couldn't zwave.parse '$description'")
 		}
 	}
 	result
@@ -124,6 +152,13 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
 	dimmerEvents(cmd)
 }
 
+def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
+	if (logEnable) log.debug "got version report"
+    // st doesn't support v2 this will need work
+	BigDecimal fw = cmd.firmware0Version + (cmd.firmware0SubVersion / 100)
+	state.firmware = fw
+}
+
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd) {
     log.debug cmd
 	unschedule(offlinePing)
@@ -131,20 +166,26 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelR
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchcolorv3.SwitchColorReport cmd) {
-	log.debug "got SwitchColorReport: $cmd"
+	if (!state.colorReceived) initializeVars()
+	if (logEnable) log.debug "got SwitchColorReport: $cmd"
 	state.colorReceived[cmd.colorComponent] = cmd.value
 	def result = []
 	// Check if we got all the RGB color components
 	if (RGB_NAMES.every { state.colorReceived[it] != null }) {
 		def colors = RGB_NAMES.collect { state.colorReceived[it] }
-		log.debug "colors: $colors"
+		if (logEnable) log.debug "colors: $colors"
 		// Send the color as hex format
 		def hexColor = "#" + colors.collect { Integer.toHexString(it).padLeft(2, "0") }.join("")
 		result << createEvent(name: "color", value: hexColor)
 		// Send the color as hue and saturation
-		def hsv = rgbToHSV(*colors)
-		result << createEvent(name: "hue", value: hsv.hue)
-		result << createEvent(name: "saturation", value: hsv.saturation)
+		def hsv = colorUtil.rgbToHSV(colors)
+		result << createEvent(name: "hue", value: hsv[0].round())
+		result << createEvent(name: "saturation", value: hsv[1].round())
+		
+		if ((hsv[0] > 0) && (hsv[1] > 0)) {
+			setGenericName(hsv[0])
+			result << createEvent(name: "level", value: hsv[2].round())
+		}
 		// Reset the values
 		RGB_NAMES.collect { state.colorReceived[it] = null}
 	}
@@ -152,12 +193,13 @@ def zwaveEvent(physicalgraph.zwave.commands.switchcolorv3.SwitchColorReport cmd)
 	if (WHITE_NAMES.every { state.colorReceived[it] != null}) {
 		def warmWhite = state.colorReceived[WARM_WHITE]
 		def coldWhite = state.colorReceived[COLD_WHITE]
-		log.debug "warmWhite: $warmWhite, coldWhite: $coldWhite"
+		if (logEnable) log.debug "warmWhite: $warmWhite, coldWhite: $coldWhite"
 		if (warmWhite == 0 && coldWhite == 0) {
 			result = createEvent(name: "colorTemperature", value: COLOR_TEMP_MIN)
 		} else {
 			def parameterNumber = warmWhite ? WARM_WHITE_CONFIG : COLD_WHITE_CONFIG
-			result << response(command(zwave.configurationV2.configurationGet([parameterNumber: parameterNumber])))
+			result << response(command(zwave.configurationV1.configurationGet([parameterNumber: parameterNumber])))
+			result << response(command(zwave.switchMultilevelV2.switchMultilevelGet()))
 		}
 		// Reset the values
 		WHITE_NAMES.collect { state.colorReceived[it] = null }
@@ -408,4 +450,65 @@ def processAssociations(){
       }
    }
    return cmds
+}
+
+
+def setGenericTempName(temp){
+    if (!temp) return
+    def genericName
+    def value = temp.toInteger()
+    if (value <= 2000) genericName = "Sodium"
+    else if (value <= 2100) genericName = "Starlight"
+    else if (value < 2400) genericName = "Sunrise"
+    else if (value < 2800) genericName = "Incandescent"
+    else if (value < 3300) genericName = "Soft White"
+    else if (value < 3500) genericName = "Warm White"
+    else if (value < 4150) genericName = "Moonlight"
+    else if (value <= 5000) genericName = "Horizon"
+    else if (value < 5500) genericName = "Daylight"
+    else if (value < 6000) genericName = "Electronic"
+    else if (value <= 6500) genericName = "Skylight"
+    else if (value < 20000) genericName = "Polar"
+    def descriptionText = "${device.getDisplayName()} color is ${genericName}"
+    if (txtEnable) log.info "${descriptionText}"
+	sendEvent(name: "colorMode", value: "CT", descriptionText: "${device.getDisplayName()} color mode is CT")
+    sendEvent(name: "colorName", value: genericName ,descriptionText: descriptionText)
+}
+
+def setGenericName(hue){
+    def colorName
+    hue = hue.toInteger()
+    hue = (hue * 3.6)
+    switch (hue.toInteger()){
+        case 0..15: colorName = "Red"
+            break
+        case 16..45: colorName = "Orange"
+            break
+        case 46..75: colorName = "Yellow"
+            break
+        case 76..105: colorName = "Chartreuse"
+            break
+        case 106..135: colorName = "Green"
+            break
+        case 136..165: colorName = "Spring"
+            break
+        case 166..195: colorName = "Cyan"
+            break
+        case 196..225: colorName = "Azure"
+            break
+        case 226..255: colorName = "Blue"
+            break
+        case 256..285: colorName = "Violet"
+            break
+        case 286..315: colorName = "Magenta"
+            break
+        case 316..345: colorName = "Rose"
+            break
+        case 346..360: colorName = "Red"
+            break
+    }
+    def descriptionText = "${device.getDisplayName()} color is ${colorName}"
+    if (txtEnable) log.info "${descriptionText}"
+	sendEvent(name: "colorMode", value: "RGB", descriptionText: "${device.getDisplayName()} color mode is RGB")
+    sendEvent(name: "colorName", value: colorName ,descriptionText: descriptionText)
 }
