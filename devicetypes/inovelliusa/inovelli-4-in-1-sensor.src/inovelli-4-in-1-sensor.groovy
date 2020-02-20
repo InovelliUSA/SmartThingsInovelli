@@ -15,6 +15,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  2020-02-20: fix icon in new ST app by adding ocfDeviceType metadata
  *  2020-01-16: Support for all device configuration parameters.
  *              Offset options for temperature, humidity, and illuminance.
  *              Fix illuminance scale.
@@ -24,7 +25,7 @@
  */
 
  metadata {
-	definition (name: "Inovelli 4-in-1 Sensor", namespace: "InovelliUSA", author: "Eric Maycock", vid:"generic-motion-7") {
+	definition (name: "Inovelli 4-in-1 Sensor", namespace: "InovelliUSA", author: "Eric Maycock", vid:"generic-motion-7", ocfDeviceType: "x.com.st.d.sensor.motion") {
         capability "Motion Sensor"
         capability "Temperature Measurement"
         capability "Relative Humidity Measurement"
