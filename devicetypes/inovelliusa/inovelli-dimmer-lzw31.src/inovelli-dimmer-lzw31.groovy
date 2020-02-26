@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer LZW31
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-02-06
+ *  Date: 2020-02-26
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -14,6 +14,8 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  2020-02-26: Switch over to using SmartThings child device handler for notifications. 
+ * 
  *  2020-02-06: Fix for remote control child device being created when it shouldn't be.
  *              Fix for local protection being updated via hub after being changed with config button.
  *
@@ -194,7 +196,7 @@ void childOn(String dni) {
     if (infoEnable) log.info "${device.label?device.label:device.name}: childOn($dni)"
     state.lastRan = now()
     def cmds = []
-    if(channelNumber(dni).toInteger() <= 4) {
+    if(channelNumber(dni).toInteger() <= 5) {
         toggleTiles("${channelNumber(dni)}", "on")
         cmds << new physicalgraph.device.HubAction(command(setParameter(16, calculateParameter("16-${channelNumber(dni)}"), 4)) )
         sendHubCommand(cmds, 1000)
@@ -207,7 +209,7 @@ void childOff(String dni) {
     if (infoEnable) log.info "${device.label?device.label:device.name}: childOff($dni)"
     state.lastRan = now()
     def cmds = []
-    if(channelNumber(dni).toInteger() <= 4) {
+    if(channelNumber(dni).toInteger() <= 5) {
         toggleTiles("${channelNumber(dni)}", "off")
         cmds << new physicalgraph.device.HubAction(command(setParameter(16, 0, 4)) )
         sendHubCommand(cmds, 1000)
@@ -217,7 +219,7 @@ void childOff(String dni) {
 }
 
 void childRefresh(String dni) {
-    log.debug "childRefresh($dni)"
+    if (infoEnable) log.info "${device.label?device.label:device.name}: childRefresh($dni)"
 }
 
 def childExists(ep) {
@@ -262,7 +264,7 @@ def initialize() {
     try {
         addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep9", null,
                 [completedSetup: true, label: "${device.displayName} (Default Local Level)",
-                isComponent: true, componentName: "ep9", componentLabel: "Default Local Level"])
+                isComponent: false, componentName: "ep9", componentLabel: "Default Local Level"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
@@ -281,7 +283,7 @@ def initialize() {
     try {
         addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep10", null,
                 [completedSetup: true, label: "${device.displayName} (Default Z-Wave Level)",
-                isComponent: true, componentName: "ep10", componentLabel: "Default Z-Wave Level"])
+                isComponent: false, componentName: "ep10", componentLabel: "Default Z-Wave Level"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
@@ -298,9 +300,9 @@ def initialize() {
     }
     if (enableDisableLocalChild && !childExists("ep101")) {
     try {
-        addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep101", null,
+        addChildDevice("smartthings", "Child Switch", "${device.deviceNetworkId}-ep101", null,
                 [completedSetup: true, label: "${device.displayName} (Disable Local Control)",
-                isComponent: true, componentName: "ep101", componentLabel: "Disable Local Control"])
+                isComponent: false, componentName: "ep101", componentLabel: "Disable Local Control"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
@@ -317,9 +319,9 @@ def initialize() {
     }
     if (enableDisableRemoteChild && !childExists("ep102")) {
     try {
-        addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep102", null,
+        addChildDevice("smartthings", "Child Switch", "${device.deviceNetworkId}-ep102", null,
                 [completedSetup: true, label: "${device.displayName} (Disable Remote Control)",
-                isComponent: true, componentName: "ep102", componentLabel: "Disable Remote Control"])
+                isComponent: false, componentName: "ep102", componentLabel: "Disable Remote Control"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
@@ -368,11 +370,11 @@ def initialize() {
     cmds << zwave.versionV1.versionGet()
     
     if (state.localProtectionState?.toInteger() != settings.disableLocal?.toInteger() || state.rfProtectionState?.toInteger() != settings.disableRemote?.toInteger()) {
-        if (infoEnable) log.info "${device.label?device.label:device.name}: Protection command class settings need to be updated"
+        //if (infoEnable) log.info "${device.label?device.label:device.name}: Protection command class settings need to be updated"
         cmds << zwave.protectionV2.protectionSet(localProtectionState : disableLocal!=null? disableLocal.toInteger() : 0, rfProtectionState: disableRemote!=null? disableRemote.toInteger() : 0)
         cmds << zwave.protectionV2.protectionGet()
     } else {
-        if (infoEnable) log.info "${device.label?device.label:device.name}: No Protection command class settings to update"
+        //if (infoEnable) log.info "${device.label?device.label:device.name}: No Protection command class settings to update"
     }
 
     if (cmds != []) return cmds else return []
@@ -636,7 +638,7 @@ def integer2Cmd(value, size) {
 }
 
 private getCommandClassVersions() {
-	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1, 0x32: 3]
+	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1, 0x32: 3, 0x5B: 1]
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
