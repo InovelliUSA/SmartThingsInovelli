@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-02-06
+ *  Date: 2020-02-26
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -14,6 +14,8 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  2020-02-26: Switch over to using SmartThings child device handler for notifications. 
+ * 
  *  2020-02-06: Fix for remote control child device being created when it shouldn't be.
  *
  *  2020-02-05: Extra button event added for those that want to distinguish held vs pushed. 
@@ -411,7 +413,7 @@ def initialize() {
     try {
         addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep9", null,
                 [completedSetup: true, label: "${device.displayName} (Default Local Level)",
-                isComponent: true, componentName: "ep9", componentLabel: "Default Local Level"])
+                isComponent: false, componentName: "ep9", componentLabel: "Default Local Level"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
@@ -430,7 +432,7 @@ def initialize() {
     try {
         addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep10", null,
                 [completedSetup: true, label: "${device.displayName} (Default Z-Wave Level)",
-                isComponent: true, componentName: "ep10", componentLabel: "Default Z-Wave Level"])
+                isComponent: false, componentName: "ep10", componentLabel: "Default Z-Wave Level"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
@@ -447,9 +449,9 @@ def initialize() {
     }
     if (enableDisableLocalChild && !childExists("ep101")) {
     try {
-        addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep101", null,
+        addChildDevice("smartthings", "Child Switch", "${device.deviceNetworkId}-ep101", null,
                 [completedSetup: true, label: "${device.displayName} (Disable Local Control)",
-                isComponent: true, componentName: "ep101", componentLabel: "Disable Local Control"])
+                isComponent: false, componentName: "ep101", componentLabel: "Disable Local Control"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
@@ -466,9 +468,9 @@ def initialize() {
     }
     if (enableDisableRemoteChild && !childExists("ep102")) {
     try {
-        addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep102", null,
+        addChildDevice("smartthings", "Child Switch", "${device.deviceNetworkId}-ep102", null,
                 [completedSetup: true, label: "${device.displayName} (Disable Remote Control)",
-                isComponent: true, componentName: "ep102", componentLabel: "Disable Remote Control"])
+                isComponent: false, componentName: "ep102", componentLabel: "Disable Remote Control"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Level Child Device\" is installed"]])
     }
@@ -487,9 +489,9 @@ def initialize() {
     [1,2,3,4,5].each { i ->
     if ((settings."parameter16-${i}a"!=null && settings."parameter16-${i}b"!=null && settings."parameter16-${i}c"!=null && settings."parameter16-${i}d"!=null) && !childExists("ep${i}")) {
     try {
-        addChildDevice("Switch Child Device", "${device.deviceNetworkId}-ep${i}", null,
+        addChildDevice("smartthings", "Child Switch", "${device.deviceNetworkId}-ep${i}", null,
                 [completedSetup: true, label: "${device.displayName} (Notification ${i})",
-                isComponent: true, componentName: "ep${i}", componentLabel: "Notification ${i}"])
+                isComponent: false, componentName: "ep${i}", componentLabel: "Notification ${i}"])
     } catch (e) {
         runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"Switch Child Device\" is installed"]])
     }
@@ -589,6 +591,7 @@ def calculateParameter(number) {
       case "16-2":
       case "16-3": 
       case "16-4":
+      case "16-5":
          value += settings."parameter${number}a"!=null ? settings."parameter${number}a".toInteger() * 1 : 0
          value += settings."parameter${number}b"!=null ? settings."parameter${number}b".toInteger() * 256 : 0
          value += settings."parameter${number}c"!=null ? settings."parameter${number}c".toInteger() * 65536 : 0
@@ -852,7 +855,7 @@ def integer2Cmd(value, size) {
 	break
 	}
     } catch (e) {
-        log.debug "Error: integer2Cmd $e Value: $value"
+        if (debugEnable) log.debug "Error: integer2Cmd $e Value: $value"
     }
 }
 
@@ -1181,7 +1184,6 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
 def zwaveEvent(physicalgraph.zwave.commands.protectionv2.ProtectionReport cmd) {
     if (debugEnable) log.debug "${device.label?device.label:device.name}: ${device.label?device.label:device.name}: ${cmd}"
     if (infoEnable) log.info "${device.label?device.label:device.name}: Protection report received: Local protection is ${cmd.localProtectionState > 0 ? "on" : "off"} & Remote protection is ${cmd.rfProtectionState > 0 ? "on" : "off"}"
-    log.debug state.lastRun
     if (!state.lastRan || now() <= state.lastRan + 60000) {
         state.localProtectionState = cmd.localProtectionState
         state.rfProtectionState = cmd.rfProtectionState
