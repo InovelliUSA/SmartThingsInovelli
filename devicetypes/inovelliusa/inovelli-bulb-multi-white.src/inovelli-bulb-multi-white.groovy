@@ -18,7 +18,7 @@
 
 metadata {
 	definition (name: "Inovelli Bulb Multi-White", namespace: "InovelliUSA", author: "erocm123",
-				ocfDeviceType: "oic.d.light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb",
+				ocfDeviceType: "oic.d.light", mnmn: "SmartThings", vid: "generic-color-temperature-bulb",
 				runLocally: false, minHubCoreVersion: '000.017.0012', executeCommandsLocally: false) {
 		capability "Switch Level"
 		capability "Color Temperature"

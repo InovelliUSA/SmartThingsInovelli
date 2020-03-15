@@ -32,7 +32,7 @@
  */
  
 metadata {
-    definition (name: "Inovelli Dimmer Red Series LZW31-SN", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-dimmer") {
+    definition (name: "Inovelli Dimmer Red Series LZW31-SN", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-dimmer-power-energy") {
         capability "Switch"
         capability "Refresh"
         capability "Polling"
