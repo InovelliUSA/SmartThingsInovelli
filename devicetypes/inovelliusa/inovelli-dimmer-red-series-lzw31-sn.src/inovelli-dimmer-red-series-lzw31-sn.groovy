@@ -63,6 +63,8 @@ metadata {
         command "holdUp"
         command "holdDown"
         
+        command "startNotification"
+        command "stopNotification"
         command "reset"
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
 
@@ -311,6 +313,22 @@ private toggleTiles(number, value) {
            }
        }
    }
+}
+
+def startNotification(value){
+    if (infoEnable) log.info "${device.label?device.label:device.name}: startNotification($value)"
+    def cmds = []
+    cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Cmd(value.toInteger(),4), parameterNumber: 16, size: 4)
+    cmds << zwave.configurationV1.configurationGet(parameterNumber: 16)
+    return commands(cmds)
+}
+
+def stopNotification(){
+    if (infoEnable) log.info "${device.label?device.label:device.name}: stopNotification($value)"
+    def cmds = []
+    cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Cmd(0,4), parameterNumber: 16, size: 4)
+    cmds << zwave.configurationV1.configurationGet(parameterNumber: 16)
+    return commands(cmds)
 }
 
 def childSetLevel(String dni, value) {
