@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-02-26
+ *  Date: 2020-03-23
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -324,7 +324,7 @@ def startNotification(value){
 }
 
 def stopNotification(){
-    if (infoEnable) log.info "${device.label?device.label:device.name}: stopNotification($value)"
+    if (infoEnable) log.info "${device.label?device.label:device.name}: stopNotification()"
     def cmds = []
     cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Cmd(0,4), parameterNumber: 16, size: 4)
     cmds << zwave.configurationV1.configurationGet(parameterNumber: 16)
