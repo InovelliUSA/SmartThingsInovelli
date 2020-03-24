@@ -1,7 +1,7 @@
 /**
  *  Inovelli Switch Red Series
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-02-26
+ *  Date: 2020-03-23
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -62,6 +62,8 @@ metadata {
         command "holdDown"
         command "pressConfig"
         
+        command "startNotification"
+        command "stopNotification"
         command "reset"
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
 
@@ -282,6 +284,22 @@ private sendAlert(data) {
         value: "failed",
         displayed: true,
     )
+}
+
+def startNotification(value){
+    if (infoEnable) log.info "${device.label?device.label:device.name}: startNotification($value)"
+    def cmds = []
+    cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Cmd(value.toInteger(),4), parameterNumber: 16, size: 4)
+    cmds << zwave.configurationV1.configurationGet(parameterNumber: 16)
+    return commands(cmds)
+}
+
+def stopNotification(){
+    if (infoEnable) log.info "${device.label?device.label:device.name}: stopNotification()"
+    def cmds = []
+    cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Cmd(0,4), parameterNumber: 16, size: 4)
+    cmds << zwave.configurationV1.configurationGet(parameterNumber: 16)
+    return commands(cmds)
 }
 
 void childSetLevel(String dni, value) {
