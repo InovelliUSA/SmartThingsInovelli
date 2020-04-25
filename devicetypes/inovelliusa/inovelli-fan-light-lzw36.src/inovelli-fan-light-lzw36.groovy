@@ -1,7 +1,7 @@
 /**
  *  Inovelli Fan + Light LZW36
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-04-23
+ *  Date: 2020-04-24
  *
  *  Copyright 2020 Inovelli / Eric Maycock
  *
@@ -35,6 +35,7 @@ metadata {
         attribute "lastActivity", "String"
         attribute "lastEvent", "String"
         attribute "firmware", "String"
+        attribute "groups", "Number"
         
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
         command "childOn"
@@ -302,6 +303,14 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
     state."parameter${cmd.parameterNumber}value" = integerValue
     
     switch (cmd.parameterNumber) {
+        case 12:
+        case 13:
+            def childDevice = childDevices.find{it.deviceNetworkId == "$device.deviceNetworkId-ep1${cmd.parameterNumber}"}
+            if(childDevice) { 
+                childDevice.sendEvent(name:"switch", value:cmd2Integer(cmd.configurationValue)? "on":"off")
+                childDevice.sendEvent(name:"level", value:cmd2Integer(cmd.configurationValue))
+            }
+        break
         case 24:
             if (cmd2Integer(cmd.configurationValue) == 0) {
                 toggleTiles(24, "off")
@@ -400,66 +409,100 @@ def childSetLevel(String dni, value) {
     def valueaux = value as Integer
     def level = Math.max(Math.min(valueaux, 99), 0)    
     def cmds = []
-    switch (channelNumber(dni)) {
+    switch (channelNumber(dni).toInteger()) {
         case 112:
-            cmds << new physicalgraph.device.HubAction(command(zwave.configurationV1.configurationSet(scaledConfigurationValue: value, parameterNumber: 12, size: 1) ))
-            cmds << new physicalgraph.device.HubAction(command(zwave.configurationV1.configurationGet(parameterNumber: 12 )))
+            cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: value, parameterNumber: 12, size: 1) 
+            cmds << zwave.configurationV1.configurationGet(parameterNumber: 12 )
         break
         case 113:
-            cmds << new physicalgraph.device.HubAction(command(zwave.configurationV1.configurationSet(scaledConfigurationValue: value, parameterNumber: 13, size: 1) ))
-            cmds << new physicalgraph.device.HubAction(command(zwave.configurationV1.configurationGet(parameterNumber: 13 )))
+            cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: value, parameterNumber: 13, size: 1) 
+            cmds << zwave.configurationV1.configurationGet(parameterNumber: 13 )
         break
         case 151:
-            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : level > 0 ? 1 : 0, rfProtectionState: state.rfProtectionState? state.rfProtectionState:0) ))
-            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionGet() ))
+            cmds << zwave.protectionV2.protectionSet(localProtectionState : level > 0 ? 1 : 0, rfProtectionState: state.rfProtectionState? state.rfProtectionState:0) 
+            cmds << zwave.protectionV2.protectionGet() 
         break
         case 152:
-            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : state.localProtectionState? state.localProtectionState:0, rfProtectionState : level > 0 ? 1 : 0) ))
-            cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionGet() ))
+            cmds << zwave.protectionV2.protectionSet(localProtectionState : state.localProtectionState? state.localProtectionState:0, rfProtectionState : level > 0 ? 1 : 0) 
+            cmds << zwave.protectionV2.protectionGet() 
         break
-        case 001:
-        case 002:
+        case 1:
+        case 2:
             cmds << encap(zwave.switchMultilevelV1.switchMultilevelSet(value: level), channelNumber(dni).toInteger())
             //cmds << encap(zwave.switchMultilevelV1.switchMultilevelGet(), channelNumber(dni))
         break
     }
-	sendHubCommand(cmds, 1000)
+	if(cmds) sendHubCommand(commands(cmds))
 }
 
 def childOn(String dni) {
     if (infoEnable) log.info "${device.label?device.label:device.name}: childOn($dni)"
     state.lastRan = now()
     def cmds = []
-    if(channelNumber(dni).toInteger() >= 201 && channelNumber(dni).toInteger() <= 205) {
-        toggleTiles("${channelNumber(dni)}", "on")
-        cmds << new physicalgraph.device.HubAction(command(setParameter(24, calculateParameter("24-${channelNumber(dni)}"), 4)))
-        sendHubCommand(cmds, 1000)
-    } else if(channelNumber(dni).toInteger() >= 251 && channelNumber(dni).toInteger() <= 255) {
-        toggleTiles("${channelNumber(dni)}", "on")
-        cmds << new physicalgraph.device.HubAction(command(setParameter(25, calculateParameter("25-${channelNumber(dni)}"), 4)))
-        sendHubCommand(cmds, 1000)
-    } else {
-        cmds << encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0xFF), channelNumber(dni).toInteger())
-        sendHubCommand(cmds, 1000)
+    switch (channelNumber(dni).toInteger()) {
+        case 201:
+        case 202:
+        case 203:
+        case 204:
+        case 205:
+            toggleTiles("${channelNumber(dni)}", "on")
+            cmds << setParameter(24, calculateParameter("24-${channelNumber(dni)}"), 4)
+        break
+        case 251:
+        case 252:
+        case 253:
+        case 254:
+        case 255:
+            toggleTiles("${channelNumber(dni)}", "on")
+            cmds << setParameter(25, calculateParameter("25-${channelNumber(dni)}"), 4)
+        break
+        case 112:
+        case 113:
+        case 151:
+        case 152:
+            childSetLevel(dni, 99)
+        break
+        case 1:
+        case 2:
+            cmds << encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0xFF), channelNumber(dni).toInteger())
+        break
     }
+    if(cmds) sendHubCommand(commands(cmds))
 }
 
 def childOff(String dni) {
     if (infoEnable) log.info "${device.label?device.label:device.name}: childOff($dni)"
     state.lastRan = now()
     def cmds = []
-    if(channelNumber(dni).toInteger() >= 201 && channelNumber(dni).toInteger() <= 205) {
-        toggleTiles("${channelNumber(dni)}", "off")
-        cmds << new physicalgraph.device.HubAction(command(setParameter(24, 0, 4)))
-        sendHubCommand(cmds, 1000)
-    } else if(channelNumber(dni).toInteger() >= 251 && channelNumber(dni).toInteger() <= 255) {
-        toggleTiles("${channelNumber(dni)}", "off")
-        cmds << new physicalgraph.device.HubAction(command(setParameter(25, 0, 4)))
-        sendHubCommand(cmds, 1000)
-    } else {
-        cmds << encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0x00), channelNumber(dni).toInteger())
-        sendHubCommand(cmds, 1000)
+    switch (channelNumber(dni).toInteger()) {
+        case 201:
+        case 202:
+        case 203:
+        case 204:
+        case 205:
+            toggleTiles("${channelNumber(dni)}", "off")
+            cmds << setParameter(24, 0, 4)
+        break
+        case 251:
+        case 252:
+        case 253:
+        case 254:
+        case 255:
+            toggleTiles("${channelNumber(dni)}", "off")
+            cmds << setParameter(25, 0, 4)
+        break
+        case 112:
+        case 113:
+        case 151:
+        case 152:
+            childSetLevel(dni, 0)
+        break
+        case 1:
+        case 2:
+            cmds << encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0x00), channelNumber(dni).toInteger())
+        break
     }
+    if(cmds) sendHubCommand(commands(cmds))
 }
 
 void childRefresh(String dni) {
@@ -731,10 +774,10 @@ def initialize() {
     
     cmds << zwave.versionV1.versionGet()
     
-    if (state.localProtectionState?.toInteger() != settings.disableLocal?.toInteger() || state.rfProtectionState?.toInteger() != settings.disableRemote?.toInteger()) {
+    if (state.localProtectionStateLight?.toInteger() != settings.disableLocalLight?.toInteger() || state.rfProtectionState?.toInteger() != settings.disableRemoteLight?.toInteger()) {
         if (infoEnable) log.info "${device.label?device.label:device.name}: Protection command class settings need to be updated"
-        cmds << zwave.protectionV2.protectionSet(localProtectionState : disableLocal!=null? disableLocal.toInteger() : 0, rfProtectionState: disableRemote!=null? disableRemote.toInteger() : 0)
-        cmds << zwave.protectionV2.protectionGet()
+        //cmds << encap(zwave.protectionV2.protectionSet(localProtectionState : disableLocal!=null? disableLocal.toInteger() : 0, rfProtectionState: disableRemote!=null? disableRemote.toInteger() : 0), 1)
+        cmds << encap(zwave.protectionV2.protectionGet(), 0)
     } else {
         if (infoEnable) log.info "${device.label?device.label:device.name}: No Protection command class settings to update"
     }
@@ -1403,8 +1446,10 @@ def generate_preferences()
                     4:"Slow Blink",
                     5:"Pulse"]
     }
-    input "disableLocal", "enum", title: "Disable Local Control", description: "\nDisable ability to control switch from the wall", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
-    input "disableRemote", "enum", title: "Disable Remote Control", description: "\nDisable ability to control switch from inside SmartThings", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
+    input "disableLocalLight", "enum", title: "Disable Local Control (Light)", description: "\nDisable ability to control switch from the wall", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
+    input "disableRemoteLight", "enum", title: "Disable Remote Control (Light)", description: "\nDisable ability to control switch from inside SmartThings", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
+    input "disableLocalFan", "enum", title: "Disable Local Control (Fan)", description: "\nDisable ability to control switch from the wall", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
+    input "disableRemoteFan", "enum", title: "Disable Remote Control (Fan)", description: "\nDisable ability to control switch from inside SmartThings", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
     input description: "Use the below options to enable child devices for the specified settings. This will allow you to adjust these settings using SmartApps such as Smart Lighting. If any of the options are enabled, make sure you have the appropriate child device handlers installed.\n(Firmware 1.02+)", title: "Child Devices", displayDuringSetup: false, type: "paragraph", element: "paragraph"
     input "enableDisableLocalChild", "bool", title: "Disable Local Control", description: "", required: false, defaultValue: false
     input "enableDisableRemoteChild", "bool", title: "Disable Remote Control", description: "", required: false, defaultValue: false
@@ -1435,11 +1480,11 @@ def getParameterInfo(number, value){
     parameter.parameter16type="number"
     parameter.parameter17type="number"
     parameter.parameter18type="enum"
-    parameter.parameter19type="number"
+    parameter.parameter19type="enum"
     parameter.parameter20type="enum"
-    parameter.parameter21type="number"
-    parameter.parameter22type="number"
-    parameter.parameter23type="number"
+    parameter.parameter21type="enum"
+    parameter.parameter22type="enum"
+    parameter.parameter23type="enum"
     parameter.parameter26type="enum"
     parameter.parameter27type="enum"
     parameter.parameter28type="number"
@@ -1493,11 +1538,11 @@ def getParameterInfo(number, value){
     parameter.parameter16options="0..100"
     parameter.parameter17options="0..100"
     parameter.parameter18options=["0":"Red","21":"Orange","42":"Yellow","85":"Green","127":"Cyan","170":"Blue","212":"Violet","234":"Pink", "255":"White"]
-    parameter.parameter19options="0..10"
+    parameter.parameter19options=["0":"0%","1":"10%","2":"20%","3":"30%","4":"40%","5":"50%","6":"60%","7":"70%","8":"80%","9":"90%","10":"100%"]
     parameter.parameter20options=["0":"Red","21":"Orange","42":"Yellow","85":"Green","127":"Cyan","170":"Blue","212":"Violet","234":"Pink", "255":"White"]
-    parameter.parameter21options="0..10"
-    parameter.parameter22options="0..10"
-    parameter.parameter23options="0..10"
+    parameter.parameter21options=["0":"0%","1":"10%","2":"20%","3":"30%","4":"40%","5":"50%","6":"60%","7":"70%","8":"80%","9":"90%","10":"100%"]
+    parameter.parameter22options=["0":"0%","1":"10%","2":"20%","3":"30%","4":"40%","5":"50%","6":"60%","7":"70%","8":"80%","9":"90%","10":"100%"]
+    parameter.parameter23options=["0":"0%","1":"10%","2":"20%","3":"30%","4":"40%","5":"50%","6":"60%","7":"70%","8":"80%","9":"90%","10":"100%"]
     parameter.parameter26options=["0":"Stay Off","1":"1 Second","2":"2 Seconds","3":"3 Seconds","4":"4 Seconds","5":"5 Seconds","6":"6 Seconds","7":"7 Seconds","8":"8 Seconds","9":"9 Seconds","10":"10 Seconds"]
     parameter.parameter27options=["0":"Stay Off","1":"1 Second","2":"2 Seconds","3":"3 Seconds","4":"4 Seconds","5":"5 Seconds","6":"6 Seconds","7":"7 Seconds","8":"8 Seconds","9":"9 Seconds","10":"10 Seconds"]
     parameter.parameter28options="0..100"
@@ -1602,7 +1647,7 @@ private encap(cmd, endpoint) {
 }
 
 private command(physicalgraph.zwave.Command cmd) {
-    if (state.sec) {
+    if (getZwaveInfo()?.zw?.contains("s")) {
         zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
     } else {
         cmd.format()
@@ -1792,18 +1837,18 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationGroupingsRe
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.protectionv2.ProtectionReport cmd, ep=null) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - $ep"
     if (infoEnable) log.info "${device.label?device.label:device.name}: Protection report received: Local protection is ${cmd.localProtectionState > 0 ? "on" : "off"} & Remote protection is ${cmd.rfProtectionState > 0 ? "on" : "off"}"
     state.localProtectionState = cmd.localProtectionState
     state.rfProtectionState = cmd.rfProtectionState
     //device.updateSetting("disableLocal",[value:cmd.localProtectionState?"1":"0",type:"enum"])
     //device.updateSetting("disableRemote",[value:cmd.rfProtectionState?"1":"0",type:"enum"])
     def children = childDevices
-    def childDevice = children.find{it.deviceNetworkId.endsWith("ep103")}
+    def childDevice = children.find{it.deviceNetworkId.endsWith("ep151")}
     if (childDevice) {
         childDevice.sendEvent(name: "switch", value: cmd.localProtectionState > 0 ? "on" : "off")        
     }
-    childDevice = children.find{it.deviceNetworkId.endsWith("ep104")}
+    childDevice = children.find{it.deviceNetworkId.endsWith("ep152")}
     if (childDevice) {
         childDevice.sendEvent(name: "switch", value: cmd.rfProtectionState > 0 ? "on" : "off")        
     }
