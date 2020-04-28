@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-03-27
+ *  Date: 2020-04-28
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -54,6 +54,7 @@ metadata {
         attribute "lastActivity", "String"
         attribute "lastEvent", "String"
         attribute "firmware", "String"
+        attribute "groups", "Number"
         
         command "pressUpX1"
         command "pressDownX1"
@@ -794,9 +795,8 @@ def initialize() {
         childDevice = children.find{it.deviceNetworkId.endsWith("ep102")}
         if (childDevice)
         childDevice.setLabel("${device.displayName} (Disable Remote Control)")
-        state.oldLabel = device.label
     }
-    
+    state.oldLabel = device.label
     /*
     sendEvent([name:"pressUpX1", value:pressUpX1Label? "${pressUpX1Label} ▲" : "Tap ▲", displayed: false])
     sendEvent([name:"pressDownX1", value:pressDownX1Label? "${pressDownX1Label} ▼" : "Tap ▼", displayed: false])
@@ -882,13 +882,13 @@ def getParameterInfo(number, value){
     parameter.parameter2default=101
     parameter.parameter3default=101
     parameter.parameter4default=101
-    parameter.parameter5default=1
+    parameter.parameter5default=10
     parameter.parameter6default=99
     parameter.parameter7default=0
     parameter.parameter8default=0
     parameter.parameter9default=0
     parameter.parameter10default=0
-    parameter.parameter11default=0
+    parameter.parameter11default=100
     parameter.parameter12default=15
     parameter.parameter13default=170
     parameter.parameter14default=5
@@ -1280,7 +1280,7 @@ def refresh() {
 }
 
 private command(physicalgraph.zwave.Command cmd) {
-    if (state.sec) {
+    if (getZwaveInfo()?.zw?.contains("s")) {
         zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
     } else {
         cmd.format()
