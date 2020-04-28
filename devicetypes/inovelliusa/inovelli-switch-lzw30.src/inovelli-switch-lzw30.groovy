@@ -1,7 +1,7 @@
 /**
  *  Inovelli Switch LZW30
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-02-26
+ *  Date: 2020-04-28
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -43,6 +43,7 @@ metadata {
         attribute "lastActivity", "String"
         attribute "lastEvent", "String"
         attribute "firmware", "String"
+        attribute "groups", "Number"
         
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
 
@@ -292,8 +293,8 @@ def initialize() {
         childDevice = children.find{it.deviceNetworkId.endsWith("ep102")}
         if (childDevice)
         childDevice.setLabel("${device.displayName} (Disable Remote Control)")
-        state.oldLabel = device.label
     }
+    state.oldLabel = device.label
     
     def cmds = processAssociations()
     
@@ -360,7 +361,7 @@ def getParameter(number) {
 }
 
 def getParameterNumbers(){
-    return [1,2,3,4,5,6,7]
+    return [1,2,3,4,5,6,7,13]
 }
 
 def getParameterInfo(number, type){
@@ -378,6 +379,7 @@ def getParameterInfo(number, type){
     parameter.parameter10default=10
     parameter.parameter11default=3600
     parameter.parameter12default=10
+    parameter.parameter13default=0
     
     parameter.parameter1type="enum"
     parameter.parameter2type="enum"
@@ -391,6 +393,7 @@ def getParameterInfo(number, type){
     parameter.parameter10type="number"
     parameter.parameter11type="number"
     parameter.parameter12type="number"
+    parameter.parameter13type="enum"
     
     parameter.parameter1size=1
     parameter.parameter2size=1
@@ -404,6 +407,7 @@ def getParameterInfo(number, type){
     parameter.parameter10size=1
     parameter.parameter11size=2
     parameter.parameter12size=1
+    parameter.parameter13size=1
     
 	parameter.parameter1options=["0":"Previous", "1":"On", "2":"Off"]
     parameter.parameter2options=["1":"Yes", "0":"No"]
@@ -417,6 +421,7 @@ def getParameterInfo(number, type){
     parameter.parameter10options="1..100"
     parameter.parameter11options="1..32767"
     parameter.parameter12options="1..100"
+    parameter.parameter13options=["0":"Default", "1":"Special Load (T8)"]
     
     parameter.parameter1name="State After Power Restored"
     parameter.parameter2name="Invert Switch"
@@ -430,6 +435,7 @@ def getParameterInfo(number, type){
     parameter.parameter10name="Active Power Reports"
     parameter.parameter11name="Periodic Power & Energy Reports"
     parameter.parameter12name="Energy Reports"
+    parameter.parameter13name="Load Type"
     
     parameter.parameter1description="The state the switch should return to once power is restored after power failure."
 	parameter.parameter2description="Inverts the orientation of the switch. Useful when the switch is installed upside down. Essentially up becomes down and down becomes up."
@@ -443,6 +449,7 @@ def getParameterInfo(number, type){
     parameter.parameter10description="The power level change that will result in a new power report being sent. The value is a percentage of the previous report. 0 = disabled."
     parameter.parameter11description="Time period between consecutive power & energy reports being sent (in seconds). The timer is reset after each report is sent."
     parameter.parameter12description="The energy level change that will result in a new energy report being sent. The value is a percentage of the previous report."
+    parameter.parameter13description="The default of the switch is to auto detect the load. In some situations you may want to try the option for a special load type. (firmware 1.17+)"
     
     return parameter."parameter${number}${type}"
 }
@@ -593,7 +600,7 @@ def refresh() {
 }
 
 private command(physicalgraph.zwave.Command cmd) {
-    if (state.sec) {
+    if (getZwaveInfo()?.zw?.contains("s")) {
         zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
     } else {
         cmd.format()
