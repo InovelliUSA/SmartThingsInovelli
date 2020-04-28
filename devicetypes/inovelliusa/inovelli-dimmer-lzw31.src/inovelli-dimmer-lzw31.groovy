@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer LZW31
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-02-26
+ *  Date: 2020-04-28
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -42,6 +42,7 @@ metadata {
         attribute "lastActivity", "String"
         attribute "lastEvent", "String"
         attribute "firmware", "String"
+        attribute "groups", "Number"
         
         command "reset"
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
@@ -351,8 +352,8 @@ def initialize() {
         childDevice = children.find{it.deviceNetworkId.endsWith("ep102")}
         if (childDevice)
         childDevice.setLabel("${device.displayName} (Disable Remote Control)")
-        state.oldLabel = device.label
     }
+    state.oldLabel = device.label
     
     def cmds = processAssociations()
     
@@ -761,7 +762,7 @@ def refresh() {
 }
 
 private command(physicalgraph.zwave.Command cmd) {
-    if (state.sec) {
+    if (getZwaveInfo()?.zw?.contains("s")) {
         zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
     } else {
         cmd.format()
