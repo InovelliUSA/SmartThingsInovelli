@@ -1,7 +1,7 @@
 /**
  *  Inovelli Switch LZW30
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-05-05
+ *  Date: 2020-05-06
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -135,8 +135,8 @@ def generate_preferences()
                range: "0..360"
         }
     }
-    input "disableLocal", "enum", title: "Disable Local Control\n\nDisable ability to control switch from the wall", description: "Tap to set", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
-    input "disableRemote", "enum", title: "Disable Remote Control\n\nDisable ability to control switch from inside SmartThings", description: "Tap to set", required: false, options:[["1": "Yes"], ["0": "No"]], defaultValue: "0"
+    input "disableLocal", "enum", title: "Disable Local Control", description: "\nDisable ability to control switch from the wall", required: false, options:["1": "Yes", "0": "No"], defaultValue: "0"
+    input "disableRemote", "enum", title: "Disable Remote Control", description: "\nDisable ability to control switch from inside SmartThings", required: false, options:["1": "Yes", "0": "No"], defaultValue: "0"
     input description: "Use the below options to enable child devices for the specified settings. This will allow you to adjust these settings using SmartApps such as Smart Lighting. If any of the options are enabled, make sure you have the appropriate child device handlers installed.\n(Firmware 1.02+)", title: "Child Devices", displayDuringSetup: false, type: "paragraph", element: "paragraph"
     input "enableDisableLocalChild", "bool", title: "Create \"Disable Local Control\" Child Device", description: "", required: false, defaultValue: false
     input "enableDisableRemoteChild", "bool", title: "Create \"Disable Remote Control\" Child Device", description: "", required: false, defaultValue: false
