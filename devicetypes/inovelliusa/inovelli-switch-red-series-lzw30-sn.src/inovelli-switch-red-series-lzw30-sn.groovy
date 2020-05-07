@@ -1,7 +1,7 @@
 /**
  *  Inovelli Switch Red Series
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-05-06
+ *  Date: 2020-05-07
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -718,9 +718,9 @@ def initialize() {
     else deleteChild("ep102")
     
     [1,2,3,4,5].each { i ->
-        if ((settings."parameter16-${i}a"!=null && settings."parameter16-${i}b"!=null && settings."parameter16-${i}c"!=null && settings."parameter16-${i}d"!=null && settings."parameter16-${i}d"!="0") && !childExists("ep${i}")) {
+        if ((settings."parameter8-${i}a"!=null && settings."parameter8-${i}b"!=null && settings."parameter8-${i}c"!=null && settings."parameter8-${i}d"!=null && settings."parameter8-${i}d"!="0") && !childExists("ep${i}")) {
             addChild("ep${i}", "Notification ${i}", "smartthings", "Child Switch", false)
-        } else if ((settings."parameter16-${i}a"==null || settings."parameter16-${i}b"==null || settings."parameter16-${i}c"==null || settings."parameter16-${i}d"==null || settings."parameter16-${i}d"=="0") && childExists("ep${i}")) {
+        } else if ((settings."parameter8-${i}a"==null || settings."parameter8-${i}b"==null || settings."parameter8-${i}c"==null || settings."parameter8-${i}d"==null || settings."parameter8-${i}d"=="0") && childExists("ep${i}")) {
             deleteChild("ep${i}")
         }
     }
