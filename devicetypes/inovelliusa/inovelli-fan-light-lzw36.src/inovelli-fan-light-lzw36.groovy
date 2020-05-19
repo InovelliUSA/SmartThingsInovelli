@@ -1,7 +1,7 @@
 /**
  *  Inovelli Fan + Light LZW36
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-04-24
+ *  Date: 2020-05-18
  *
  *  Copyright 2020 Inovelli / Eric Maycock
  *
@@ -120,6 +120,10 @@ def parse(description) {
             if (debugEnable) log.debug "Couldn't zwave.parse '$description'" 
         }
     }
+    
+    //New SmartThings app is changing child device to a "placeholder" device type
+    checkChildTypes()
+    
     def now
     if(location.timeZone)
     now = new Date().format("yyyy MMM dd EEE h:mm:ss a", location.timeZone)
@@ -130,7 +134,7 @@ def parse(description) {
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd, ep = null) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep}"
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep?ep:0}"
     if (infoEnable) log.info "${device.label?device.label:device.name}: Basic report received with value of ${cmd.value ? "on" : "off"} - ep${ep}"
     if (ep) {
         def event
@@ -188,7 +192,7 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cmd, ep = null) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep}"
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep?ep:0}"
     if (infoEnable) log.info "${device.label?device.label:device.name}: Switch Binary report received with value of ${cmd.value ? "on" : "off"} - ep${ep}"
     if (ep) {
         def event
@@ -221,7 +225,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cm
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd, ep = null) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep}"
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep?ep:0}"
     if (infoEnable) log.info "${device.label?device.label:device.name}: Switch MultiLevel report received with value of ${cmd.value ? "on" : "off"} - ep${ep}"
     if (ep) {
         def event
@@ -261,7 +265,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelR
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.indicatorv1.IndicatorReport cmd, ep=null) {
-	if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep}"
+	if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep?ep:0}"
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.multichannelv3.MultiChannelCmdEncap cmd) {
@@ -557,6 +561,19 @@ def updated() {
     }
 }
 
+private checkChildTypes() {
+    def childDevice = childDevices.find{it.deviceNetworkId.endsWith("ep001")}
+    if (childDevice && (childDevice.typeName.indexOf("Switch Level Child Device") < 0)) {
+        if (infoEnable) log.info "${device.label?device.label:device.name}: The new SmartThings app is changing child device to the incorrect device handler. Changing it back."
+        childDevice.setDeviceType("InovelliUSA","Switch Level Child Device")
+    }
+    childDevice = childDevices.find{it.deviceNetworkId.endsWith("ep002")}
+    if (childDevice && (childDevice.typeName.indexOf("Switch Level Child Device") < 0)) {
+        if (infoEnable) log.info "${device.label?device.label:device.name}: The new SmartThings app is changing child device to the incorrect device handler. Changing it back."
+        childDevice.setDeviceType("InovelliUSA","Switch Level Child Device")
+    }
+}
+
 def logsOff(){
     log.warn "${device.label?device.label:device.name}: Disabling logging after timeout"
     //device.updateSetting("debugEnable",[value:"false",type:"bool"])
@@ -734,6 +751,8 @@ def initialize() {
     }
     state.oldLabel = device.label
     
+    checkChildTypes()
+        
     /*
     sendEvent([name:"pressUpX1", value:pressUpX1Label? "${pressUpX1Label} ▲" : "Tap ▲", displayed: false])
     sendEvent([name:"pressDownX1", value:pressDownX1Label? "${pressDownX1Label} ▼" : "Tap ▼", displayed: false])
@@ -791,7 +810,7 @@ def childExists(ep) {
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd, ep=null) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd} - ep${ep?ep:0}"
     switch (cmd.keyAttributes) {
        case 0:
        if (cmd.sceneNumber == 3) createEvent(buttonEvent(7, "pushed", "physical"))
@@ -813,7 +832,7 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd, ep=null) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${ep?ep:0}"
     def event
 	if (cmd.scale == 0) {
     	if (cmd.meterType == 161) {
@@ -1488,7 +1507,7 @@ def getParameterInfo(number, value){
     parameter.parameter29type="number"
     parameter.parameter30type="number"
 
-    parameter.parameter1default=4
+    parameter.parameter1default=3
     parameter.parameter2default=99
     parameter.parameter3default=99
     parameter.parameter4default=99
