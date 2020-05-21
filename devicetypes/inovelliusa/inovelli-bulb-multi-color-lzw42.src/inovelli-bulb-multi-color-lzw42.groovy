@@ -13,7 +13,7 @@
  *  Inovelli Bulb Multi-Color LZW42
  *
  *  Author: Eric Maycock
- *  Date: 2020-5-21
+ *  Date: 2019-9-9
  *  updated by bcopeland 1/7/2020 
  *		Added color pre-staging option
  *		Added power restored memory configuration
@@ -81,7 +81,7 @@ metadata {
 	preferences {
 			input name: "colorStaging", type: "bool", description: "", title: "Enable color pre-staging", defaultValue: false
 			input name: "logEnable", type: "bool", description: "", title: "Enable Debug Logging", defaultVaule: true
-			input name: "bulbMemory", type: "enum", title: "Power outage state", options: [0:"Remembers Last ON State",1:"Remebers Last State (ON or OFF)"], defaultValue: 0
+			input name: "bulbMemory", type: "enum", title: "Power outage state", options: [0:"Remembers Last ON State",1:"Remembers Last State (ON or OFF)"], defaultValue: 0
 	}
 
 	controlTile("colorTempSliderControl", "device.colorTemperature", "slider", width: 4, height: 2, inactiveLabel: false, range:"(2700..6500)") {
