@@ -13,7 +13,7 @@
  *  Inovelli Bulb Multi-Color LZW42
  *
  *  Author: Eric Maycock
- *  Date: 2019-9-9
+ *  Date: 2020-5-21
  *  updated by bcopeland 1/7/2020 
  *		Added color pre-staging option
  *		Added power restored memory configuration
@@ -117,12 +117,13 @@ def logsOff(){
 
 def updated() {
 	log.debug "updated().."
+    def cmds = []
     if (!state.powerStateMem) initializeVars()
     if (!state.bulbMemory) initializeVars()
 	if (state.powerStateMem.toInteger() != bulbMemory.toInteger()) 
 	if (logEnable) runIn(1800,logsOff)
-    configure() 
-	response(refresh())
+    cmds = configure() 
+	response(commands(cmds))
 }
 
 def installed() {
@@ -149,7 +150,7 @@ def configure() {
 	cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: COLOR_TEMP_MAX, parameterNumber: COLD_WHITE_CONFIG, size: 2])
     cmds << zwave.configurationV1.configurationGet([parameterNumber: 2])
     state.cfgVersion=2
-	commands(cmds)
+	return cmds
 }
 
 def parse(description) {
@@ -553,5 +554,4 @@ def setGenericName(hue){
 	sendEvent(name: "colorMode", value: "RGB", descriptionText: "${device.getDisplayName()} color mode is RGB")
     sendEvent(name: "colorName", value: colorName ,descriptionText: descriptionText)
 }
-
 
