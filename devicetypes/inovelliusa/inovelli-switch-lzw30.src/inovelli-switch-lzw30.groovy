@@ -1,7 +1,7 @@
 /**
  *  Inovelli Switch LZW30
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-05-06
+ *  Date: 2020-05-31
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -172,10 +172,10 @@ def setColor(value) {
     def ledLevel = Math.round(value.level/10)
 	if (infoEnable) log.info "${device.label?device.label:device.name}: Setting LED color value to $ledColor & LED intensity to $ledLevel"
     def cmds = []
-    cmds << setParameter(13, ledColor, 2)
-    cmds << setParameter(14, ledLevel, 1)
-    cmds << getParameter(13)
-    cmds << getParameter(14)
+    cmds << setParameter(5, ledColor, 2)
+    cmds << setParameter(6, ledLevel, 1)
+    cmds << getParameter(5)
+    cmds << getParameter(6)
     return commands(cmds)
 }
 
@@ -463,7 +463,7 @@ def getParameterInfo(number, type){
     parameter.parameter10options="1..100"
     parameter.parameter11options="1..32767"
     parameter.parameter12options="1..100"
-    parameter.parameter13options=["0":"Default", "1":"Special Load (T8)"]
+    parameter.parameter13options=["0":"Auto Detect", "1":"Force 3-Way Dumb Switch Mode"]
     
     parameter.parameter1name="State After Power Restored"
     parameter.parameter2name="Invert Switch"
@@ -477,7 +477,7 @@ def getParameterInfo(number, type){
     parameter.parameter10name="Active Power Reports"
     parameter.parameter11name="Periodic Power & Energy Reports"
     parameter.parameter12name="Energy Reports"
-    parameter.parameter13name="Load Type"
+    parameter.parameter13name="Mode Configuration"
     
     parameter.parameter1description="The state the switch should return to once power is restored after power failure."
 	parameter.parameter2description="Inverts the orientation of the switch. Useful when the switch is installed upside down. Essentially up becomes down and down becomes up."
@@ -491,7 +491,7 @@ def getParameterInfo(number, type){
     parameter.parameter10description="The power level change that will result in a new power report being sent. The value is a percentage of the previous report. 0 = disabled."
     parameter.parameter11description="Time period between consecutive power & energy reports being sent (in seconds). The timer is reset after each report is sent."
     parameter.parameter12description="The energy level change that will result in a new energy report being sent. The value is a percentage of the previous report."
-    parameter.parameter13description="The default of the switch is to auto detect the load. In some situations you may want to try the option for a special load type. (firmware 1.17+)"
+    parameter.parameter13description="The default of the switch is to auto detect the configuration (single pole, 3-way dumb switch, 3-way aux switch). In some situations you may want to try this option to force it into 3-way dumb switch mode if you have a special load type that is causing problems with the detection. (firmware 1.17+)"
     
     return parameter."parameter${number}${type}"
 }
