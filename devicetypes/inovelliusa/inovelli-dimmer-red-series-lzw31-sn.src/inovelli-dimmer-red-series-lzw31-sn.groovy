@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-05-06
+ *  Date: 2020-06-02
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -585,15 +585,16 @@ def stopNotification(ep = null){
 def setColor(value) {
     if (infoEnable) log.info "${device.label?device.label:device.name}: setColor($value)"
 	if (value.hue == null || value.saturation == null) return
-	if (value.level == null) value.level=50
 	def ledColor = Math.round(huePercentToZwaveValue(value.hue))
-    def ledLevel = Math.round(value.level/10)
 	if (infoEnable) log.info "${device.label?device.label:device.name}: Setting LED color value to $ledColor & LED intensity to $ledLevel"
     def cmds = []
+    if (value.level != null) {
+        def ledLevel = Math.round(value.level/10)
+        cmds << setParameter(14, ledLevel, 1)
+        cmds << getParameter(14)
+    }
     cmds << setParameter(13, ledColor, 2)
-    cmds << setParameter(14, ledLevel, 1)
     cmds << getParameter(13)
-    cmds << getParameter(14)
     return commands(cmds)
 }
 
