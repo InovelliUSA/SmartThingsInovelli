@@ -144,8 +144,7 @@ def initializeVars() {
 
 def configure() {
 	def cmds = []
-    if (!bulbMemory) bulbMemory=0
-	cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: bulbMemory.toInteger(), parameterNumber: 2, size:1])
+	cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: bulbMemory? bulbMemory.toInteger() : 0, parameterNumber: 2, size:1])
     cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: COLOR_TEMP_MIN, parameterNumber: WARM_WHITE_CONFIG, size: 2])
 	cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: COLOR_TEMP_MAX, parameterNumber: COLD_WHITE_CONFIG, size: 2])
     cmds << zwave.configurationV1.configurationGet([parameterNumber: 2])
