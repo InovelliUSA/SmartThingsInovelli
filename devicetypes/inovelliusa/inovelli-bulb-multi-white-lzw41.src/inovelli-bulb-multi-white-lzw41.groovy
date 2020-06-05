@@ -18,7 +18,7 @@
  */
 
 metadata {
-	definition (name: "Inovelli Bulb Multi-White", namespace: "InovelliUSA", author: "erocm123",
+	definition (name: "Inovelli Bulb Multi-White LZW41", namespace: "InovelliUSA", author: "erocm123",
 				ocfDeviceType: "oic.d.light", mnmn: "SmartThings", vid: "generic-rgbw-color-bulb",
 				runLocally: false, minHubCoreVersion: '000.017.0012', executeCommandsLocally: false) {
 		capability "Switch Level"
@@ -56,7 +56,7 @@ metadata {
 	preferences {
 			input name: "colorStaging", type: "bool", description: "", title: "Enable color pre-staging", defaultValue: false
 			input name: "logEnable", type: "bool", description: "", title: "Enable Debug Logging", defaultVaule: true
-			input name: "bulbMemory", type: "enum", title: "Power outage state", options: [0:"Remembers Last State",1:"Bulb turns ON",2:"Bulb turns OFF"], defaultValue: 0
+			input name: "bulbMemory", type: "enum", title: "Power outage state", options: ["0":"Remembers Last ON State","1":"Remembers Last State (ON or OFF)"], defaultValue: "0"
 	}
 	controlTile("colorTempSliderControl", "device.colorTemperature", "slider", width: 4, height: 2, inactiveLabel: false, range:"(2700..6500)") {
 		state "colorTemperature", action:"color temperature.setColorTemperature"
@@ -82,41 +82,42 @@ private getCOLOR_TEMP_DIFF() { COLOR_TEMP_MAX - COLOR_TEMP_MIN }
 
 def updated() {
 	log.debug "updated().."
-    if (!state.powerStateMem) initializeVars()
-    if (!state.bulbMemory) initializeVars()
-	if (state.powerStateMem.toInteger() != bulbMemory.toInteger())
-	if (logEnable) runIn(1800,logsOff)
-    configure()
-	response(refresh())
-}
-
-def initializeVars() {
-	if (!state.colorReceived) state.colorReceived = [red: null, green: null, blue: null, warmWhite: null, coldWhite: null]
-	if (!state.powerStateMem) state.powerStateMem=0
-}
-
-def logsOff(){
-    log.warn "debug logging disabled..."
-    device.updateSetting("logEnable",[value:"false",type:"bool"])
+    def cmds = []
+    if (state.colorReceived==null || state.powerStateMem==null) initializeVars()
+	if (state.powerStateMem?.toInteger() != bulbMemory?.toInteger()) {
+        cmds = initializeConfig()
+	    response(commands(cmds))
+    }
 }
 
 def installed() {
 	log.debug "installed()..."
+	initializeVars()
 	sendEvent(name: "checkInterval", value: 1860, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "0"])
 	sendEvent(name: "level", value: 100, unit: "%")
-	sendEvent(name: "colorTemperature", value: 2700)
-    initializeVars()
+	sendEvent(name: "colorTemperature", value: COLOR_TEMP_MIN)
+}
+
+def initializeVars() {
+    log.debug "initializeVars()"
+	if (state.colorReceived==null) state.colorReceived = [red: null, green: null, blue: null, warmWhite: null, coldWhite: null]
+	if (state.powerStateMem==null) state.powerStateMem=0
 }
 
 def configure() {
-	def cmds = []
-    if (!bulbMemory) bulbMemory=0
-	cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: bulbMemory.toInteger(), parameterNumber: 2, size:1])
+    log.debug "configure()"
+	def cmds = initializeConfig()
+	return commands(cmds)
+}
+
+def initializeConfig() {
+    def cmds = []
+	cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: bulbMemory? bulbMemory.toInteger() : 0, parameterNumber: 2, size:1])
     cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: COLOR_TEMP_MIN, parameterNumber: WARM_WHITE_CONFIG, size: 2])
 	cmds << zwave.configurationV1.configurationSet([scaledConfigurationValue: COLOR_TEMP_MAX, parameterNumber: COLD_WHITE_CONFIG, size: 2])
     cmds << zwave.configurationV1.configurationGet([parameterNumber: 2])
     state.cfgVersion=2
-	commands(cmds)
+	return cmds
 }
 
 def parse(description) {
@@ -240,10 +241,12 @@ def buildOffOnEvent(cmd){
 }
 
 def on() {
-	if (!state.cfgversion || state.cfgversion < 2) { 
-    	configure() 
+    def cmds = []
+	if (!state.cfgVersion || state.cfgVersion < 2) { 
+    	cmds = initializeConfig() 
     }
-	commands([zwave.basicV1.basicSet(value: 0xFF)])
+    cmds << zwave.basicV1.basicSet(value: 0xFF)
+	commands(cmds)
 }
 
 def off() {
@@ -251,15 +254,7 @@ def off() {
 }
 
 def refresh() {
-	//commands([zwave.switchMultilevelV3.switchMultilevelGet()] + queryAllColors(), 500)
-    //def commands = []
-    def commands = processAssociations()
-    //commands << zwave.configurationV1.configurationSet(parameterNumber: 80, scaledConfigurationValue: 1, size: 1).format()
-
-    //[2,80,81,82].each { i ->
-    //    commands << zwave.configurationV1.configurationGet(parameterNumber: i).format()
-    //}
-    delayBetween(commands,1000)
+	commands([zwave.switchMultilevelV2.switchMultilevelGet()] + queryAllColors())
 }
 
 def ping() {
@@ -314,13 +309,11 @@ private crcEncap(physicalgraph.zwave.Command cmd) {
 }
 
 private command(physicalgraph.zwave.Command cmd) {
-	if (zwaveInfo.zw.contains("s")) {
-		secEncap(cmd)
-	} else if (zwaveInfo.cc.contains("56")){
-		crcEncap(cmd)
-	} else {
-		cmd.format()
-	}
+    if (getZwaveInfo()?.zw?.contains("s")) {
+        zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
+    } else {
+        cmd.format()
+    }
 }
 
 private commands(commands, delay=200) {
@@ -405,4 +398,3 @@ def setGenericTempName(temp){
     if (txtEnable) log.info "${descriptionText}"
     sendEvent(name: "colorName", value: genericName ,descriptionText: descriptionText)
 }
-
