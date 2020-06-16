@@ -79,8 +79,8 @@ metadata {
 		}
 	}
 	preferences {
-			input name: "colorStaging", type: "bool", description: "", title: "Enable color pre-staging", defaultValue: false
-			input name: "logEnable", type: "bool", description: "", title: "Enable Debug Logging", defaultVaule: true
+			input name: "colorStaging", type: "boolean", description: "", title: "Enable color pre-staging", defaultValue: false
+			input name: "logEnable", type: "boolean", description: "", title: "Enable Debug Logging", defaultVaule: true
 			input name: "bulbMemory", type: "enum", title: "Power outage state", options: ["0":"Remembers Last ON State","1":"Remembers Last State (ON or OFF)"], defaultValue: "0"
 	}
 
@@ -359,7 +359,7 @@ def setColor(value) {
 		def rgb = huesatToRGB(value.hue, value.saturation)
 		result << zwave.switchColorV2.switchColorSet(red: rgb[0], green: rgb[1], blue: rgb[2], warmWhite:0, coldWhite:0)
 	}
-    if (device.currentValue("switch") != "on") {
+    if ((device.currentValue("switch") != "on") && (!colorStaging)){
         log.debug "Bulb is off. Turning on"
         result << zwave.basicV1.basicSet(value: 0xFF)
     }
@@ -553,4 +553,3 @@ def setGenericName(hue){
 	sendEvent(name: "colorMode", value: "RGB", descriptionText: "${device.getDisplayName()} color mode is RGB")
     sendEvent(name: "colorName", value: colorName ,descriptionText: descriptionText)
 }
-
