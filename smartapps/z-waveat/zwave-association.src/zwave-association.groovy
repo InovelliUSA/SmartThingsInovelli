@@ -23,7 +23,7 @@
  
 definition(
     name: "Z-Wave Association",
-    namespace: "erocm123/Z-WaveAT",
+    namespace: "InovelliUSA/Z-WaveAT",
     author: "Eric Maycock",
     description: "An app to create direct associations between two Z-Wave devices.",
     category: "My Apps",
