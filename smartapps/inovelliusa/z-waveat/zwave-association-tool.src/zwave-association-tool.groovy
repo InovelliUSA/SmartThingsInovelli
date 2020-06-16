@@ -19,7 +19,7 @@ preferences {
              title: "Z-Wave Association Tool on Github",
              required: false,
              style: "external",
-             url: "https://github.com/erocm123/SmartThingsPublic/tree/master/smartapps/erocm123/z-waveat",
+             url: "https://github.com/InovelliUSA/SmartThingsInovelli/tree/master/smartapps/inovelliusa/z-waveat",
              description: "Tap to view information about this SmartApp")
         }
     }
