@@ -1,6 +1,6 @@
 definition(
     name: "Z-Wave Association Tool",
-    namespace: "erocm123/Z-WaveAT",
+    namespace: "InovelliUSA/Z-WaveAT",
     author: "Eric Maycock",
     description: "Create direct associations from one Z-Wave device to another",
     category: "My Apps",
