@@ -1,6 +1,6 @@
 definition(
     name: "Z-Wave Association Tool",
-    namespace: "InovelliUSA",
+    namespace: "InovelliUSA/Z-WaveAT",
     author: "Eric Maycock",
     description: "Create direct associations from one Z-Wave device to another",
     category: "My Apps",
@@ -11,7 +11,7 @@ definition(
 preferences {
     page(name: "mainPage", title: "Associations", install: true, uninstall: true,submitOnChange: true) {
         section {
-            app(name: "association", appName: "Z-Wave Association", namespace: "Z-WaveAT", title: "Create New Association", multiple: true)
+            app(name: "association", appName: "Z-Wave Association", namespace: "InovelliUSA/Z-WaveAT", title: "Create New Association", multiple: true)
             }
         section {
             paragraph "This tool allows you to create direct associations between multiple Z-Wave devices. In order for it to create the association, the source device handler needs to have support for this tool added to it. Some examples of handlers that have support are the Inovelli Plug handlers, Inovelli Dimmer & Switch handlers, and the Inovelli Door/Window Sensor handler. The destination does not need anything added to it's handler, but does need to be a Z-Wave device.\n\nFor more information on how this SmartApp works click the link below."
