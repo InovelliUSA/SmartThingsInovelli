@@ -54,8 +54,8 @@ metadata {
 		}
 	}
 	preferences {
-			input name: "colorStaging", type: "bool", description: "", title: "Enable color pre-staging", defaultValue: false
-			input name: "logEnable", type: "bool", description: "", title: "Enable Debug Logging", defaultVaule: true
+			input name: "colorStaging", type: "boolean", description: "", title: "Enable color pre-staging", defaultValue: false
+			input name: "logEnable", type: "boolean", description: "", title: "Enable Debug Logging", defaultVaule: true
 			input name: "bulbMemory", type: "enum", title: "Power outage state", options: ["0":"Remembers Last ON State","1":"Remembers Last State (ON or OFF)"], defaultValue: "0"
 	}
 	controlTile("colorTempSliderControl", "device.colorTemperature", "slider", width: 4, height: 2, inactiveLabel: false, range:"(2700..6500)") {
@@ -289,7 +289,7 @@ def setColorTemperature(temp) {
 	def warmValue = ((COLOR_TEMP_MAX - temp) / COLOR_TEMP_DIFF * 255) as Integer
 	def coldValue = 255 - warmValue
 	cmds << zwave.switchColorV2.switchColorSet(warmWhite: warmValue, coldWhite: coldValue)
-    if (device.currentValue("switch") != "on") {
+    if ((device.currentValue("switch") != "on") && (!colorStaging)) {
         log.debug "Bulb is off. Turning on"
         cmds << zwave.basicV1.basicSet(value: 0xFF)
     }
