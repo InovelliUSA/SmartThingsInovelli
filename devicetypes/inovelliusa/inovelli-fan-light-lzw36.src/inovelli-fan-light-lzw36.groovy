@@ -842,7 +842,7 @@ def buttonEvent(button, value, type = "digital") {
 }
 
 def getParameterNumbers(){
-    return [1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,26,27,28,29,30]
+    return [1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,26,27,28,29,30,31]
 }
 
 def generate_preferences()
@@ -1442,12 +1442,12 @@ def generate_preferences()
                     5:"Pulse"]
     }
     input description: "Use the below options to enable child devices for the specified settings. This will allow you to adjust these settings using SmartApps such as Smart Lighting. If any of the options are enabled, make sure you have the appropriate child device handlers installed.\n(Firmware 1.02+)", title: "Child Devices", displayDuringSetup: false, type: "paragraph", element: "paragraph"
-    //input "enableDisableLocalChild", "bool", title: "Disable Local Control", description: "", required: false, defaultValue: false
-    //input "enableDisableRemoteChild", "bool", title: "Disable Remote Control", description: "", required: false, defaultValue: false
-    input "enableDefaultLocalChild", "bool", title: "Default Level (Local)", description: "", required: false, defaultValue: false
-    input "enableDefaultZWaveChild", "bool", title: "Default Level (Z-Wave)", description: "", required: false, defaultValue: false
-    input name: "debugEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-    input name: "infoEnable", type: "bool", title: "Enable informational logging", defaultValue: true
+    //input "enableDisableLocalChild", "boolean", title: "Disable Local Control", description: "", required: false, defaultValue: false
+    //input "enableDisableRemoteChild", "boolean", title: "Disable Remote Control", description: "", required: false, defaultValue: false
+    input "enableDefaultLocalChild", "boolean", title: "Default Level (Local)", description: "", required: false, defaultValue: false
+    input "enableDefaultZWaveChild", "boolean", title: "Default Level (Z-Wave)", description: "", required: false, defaultValue: false
+    input name: "debugEnable", type: "boolean", title: "Enable debug logging", defaultValue: true
+    input name: "infoEnable", type: "boolean", title: "Enable informational logging", defaultValue: true
 }
 
 def getParameterInfo(number, value){
