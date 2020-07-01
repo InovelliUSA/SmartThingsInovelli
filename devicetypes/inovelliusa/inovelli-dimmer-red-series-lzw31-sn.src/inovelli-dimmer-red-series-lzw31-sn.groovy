@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-06-02
+ *  Date: 2020-07-01
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -13,6 +13,9 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-07-01: Fix for bool settings not showing correctly in SmartThings app.
+ *              Adding white LED color options for firmware 1.45+
  *
  *  2020-05-05: Adding ColorControl capability to allow changing the LED bar color easily with setColor.
  *              Adding preferences to automatically disable logs after x minutes. Previously the informational
@@ -42,6 +45,8 @@
  *
  *  2019-11-13: Bug fix for not being able to set default level back to 0
  */
+ 
+import groovy.transform.Field
  
 metadata {
     definition (name: "Inovelli Dimmer Red Series LZW31-SN", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-dimmer-power-energy") {
@@ -81,7 +86,6 @@ metadata {
         command "stopNotification"
         command "reset"
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
-
 
         fingerprint mfr: "031E", prod: "0001", model: "0001", deviceJoinName: "Inovelli Dimmer Red Series"
         fingerprint deviceId: "0x1101", inClusters: "0x5E,0x55,0x98,0x9F,0x6C,0x22,0x26,0x70,0x85,0x59,0x86,0x32,0x72,0x5A,0x5B,0x73,0x75,0x7A" // Red Series
@@ -240,7 +244,8 @@ def generate_preferences()
                     127:"Cyan",
                     170:"Blue",
                     212:"Violet",
-                    234:"Pink"]
+                    234:"Pink",
+                    255:"White (Firmware 1.45+)"]
                 input "parameter16-${i}b", "enum", title: "LED Effect Level - Notification $i", description: "Tap to set", displayDuringSetup: false, required: false, options: [
                     0:"0%",
                     1:"10%",
@@ -519,12 +524,12 @@ def generate_preferences()
     input "disableLocal", "enum", title: "Disable Local Control", description: "\nDisable ability to control switch from the wall", required: false, options:["1": "Yes", "0": "No"], defaultValue: "0"
     input "disableRemote", "enum", title: "Disable Remote Control", description: "\nDisable ability to control switch from inside SmartThings", required: false, options:["1": "Yes", "0": "No"], defaultValue: "0"
     input description: "Use the below options to enable child devices for the specified settings. This will allow you to adjust these settings using SmartApps such as Smart Lighting. If any of the options are enabled, make sure you have the appropriate child device handlers installed.\n(Firmware 1.02+)", title: "Child Devices", displayDuringSetup: false, type: "paragraph", element: "paragraph"
-    input "enableDisableLocalChild", "bool", title: "Create \"Disable Local Control\" Child Device", description: "", required: false, defaultValue: false
-    input "enableDisableRemoteChild", "bool", title: "Create \"Disable Remote Control\" Child Device", description: "", required: false, defaultValue: false
-    input "enableDefaultLocalChild", "bool", title: "Create \"Default Level (Local)\" Child Device", description: "", required: false, defaultValue: false
-    input "enableDefaultZWaveChild", "bool", title: "Create \"Default Level (Z-Wave)\" Child Device", description: "", required: false, defaultValue: false
-    input name: "debugEnable", type: "bool", title: "Enable Debug Logging", defaultValue: true
-    input name: "infoEnable", type: "bool", title: "Enable Informational Logging", defaultValue: true
+    input "enableDisableLocalChild", "boolean", title: "Create \"Disable Local Control\" Child Device", description: "", required: false, defaultValue: false
+    input "enableDisableRemoteChild", "boolean", title: "Create \"Disable Remote Control\" Child Device", description: "", required: false, defaultValue: false
+    input "enableDefaultLocalChild", "boolean", title: "Create \"Default Level (Local)\" Child Device", description: "", required: false, defaultValue: false
+    input "enableDefaultZWaveChild", "boolean", title: "Create \"Default Level (Z-Wave)\" Child Device", description: "", required: false, defaultValue: false
+    input name: "debugEnable", type: "boolean", title: "Enable Debug Logging", defaultValue: true
+    input name: "infoEnable", type: "boolean", title: "Enable Informational Logging", defaultValue: true
 }
 
 private channelNumber(String dni) {
@@ -533,8 +538,8 @@ private channelNumber(String dni) {
 
 def logsOff(){
     log.warn "${device.label?device.label:device.name}: Disabling logging after timeout"
-    //device.updateSetting("debugEnable",[value:"false",type:"bool"])
-    //device.updateSetting("infoEnable",[value:"false",type:"bool"])
+    //device.updateSetting("debugEnable",[value:"false",type:"boolean"])
+    //device.updateSetting("infoEnable",[value:"false",type:"boolean"])
 }
 
 private sendAlert(data) {
@@ -867,7 +872,6 @@ def getParameterNumbers(){
 
 def getParameterInfo(number, value){
     def parameter = [:]
-    
     parameter.parameter1default=3
     parameter.parameter2default=101
     parameter.parameter3default=101
