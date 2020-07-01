@@ -3,7 +3,7 @@
  *  Inovelli 4-in-1 Sensor 
  *   
  *	github: InovelliUSA
- *	Date: 2020-01-16
+ *	Date: 2020-07-01
  *	Copyright Inovelli / Eric Maycock
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -15,7 +15,10 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  2020-07-01: Fix for bool settings not showing correctly in SmartThings app.
+ *
  *  2020-02-20: fix icon in new ST app by adding ocfDeviceType metadata
+ *
  *  2020-01-16: Support for all device configuration parameters.
  *              Offset options for temperature, humidity, and illuminance.
  *              Fix illuminance scale.
@@ -195,8 +198,8 @@ def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
 
 def logsOff(){
     log.info "${device.label?device.label:device.name}: Disabling logging after timeout"
-    //device.updateSetting("debugEnable",[value:"false",type:"bool"])
-    //device.updateSetting("infoEnable",[value:"false",type:"bool"])
+    //device.updateSetting("debugEnable",[value:"false",type:"boolean"])
+    //device.updateSetting("infoEnable",[value:"false",type:"boolean"])
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
@@ -413,7 +416,7 @@ def initialize() {
     
     getParameterNumbers().each{ i ->
       if ((state."parameter${i}value" != ((settings."parameter${i}"!=null||calculateParameter(i)!=null)? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()))){
-          if (infoEnable != false) log.info "Parameter $i is not set correctly. Setting it to ${settings."parameter${i}"!=null? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()}."
+          //if (infoEnable != false) log.info "Parameter $i is not set correctly. Setting it to ${settings."parameter${i}"!=null? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()}."
           cmds << setParameter(i, (settings."parameter${i}"!=null||calculateParameter(i)!=null)? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger(), getParameterInfo(i, "size").toInteger())
           cmds << getParameter(i)
       }
@@ -718,8 +721,8 @@ def generate_preferences()
     input name: "temperatureOffset", type: "decimal", title: "Temperature Offset\nAdjust the reported temperature by this positive or negative value\nRange: -10.0..10.0\nDefault: 0.0", range: "-10.0..10.0", defaultValue: 0
     input name: "humidityOffset", type: "number", title: "Humidity Offset\nAdjust the reported humidity percentage by this positive or negative value\nRange: -10 ..10\nDefault: 0", range: "-10..10", defaultValue: 0
     input name: "luminanceOffset", type: "number", title: "Luminance Offset\nAdjust the reported luminance by this positive or negative value\nRange: -100..100\nDefault: 0", range: "-100..100", defaultValue: 0
-    input name: "debugEnable", type: "bool", title: "Enable debug logging", defaultValue: true
-    input name: "infoEnable", type: "bool", title: "Enable informational logging", defaultValue: true
+    input name: "debugEnable", type: "boolean", title: "Enable debug logging", defaultValue: true
+    input name: "infoEnable", type: "boolean", title: "Enable informational logging", defaultValue: true
 }
 
 def setDefaultAssociations() {
@@ -804,9 +807,14 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationGroupingsRe
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
-    if (debugEnable != false) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
     if(cmd.applicationVersion != null && cmd.applicationSubVersion != null) {
 	    def firmware = "${cmd.applicationVersion}.${cmd.applicationSubVersion.toString().padLeft(2,'0')}"
+        if (infoEnable) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
+        state.needfwUpdate = "false"
+        createEvent(name: "firmware", value: "${firmware}")
+    } else if(cmd.firmware0Version != null && cmd.firmware0SubVersion != null) {
+	    def firmware = "${cmd.firmware0Version}.${cmd.firmware0SubVersion.toString().padLeft(2,'0')}"
         if (infoEnable != false) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
         state.needfwUpdate = "false"
         createEvent(name: "firmware", value: "${firmware}")
