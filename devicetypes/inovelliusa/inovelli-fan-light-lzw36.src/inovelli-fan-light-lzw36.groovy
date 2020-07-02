@@ -1,7 +1,7 @@
 /**
  *  Inovelli Fan + Light LZW36
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-06-30
+ *  Date: 2020-07-02
  *
  *  Copyright 2020 Inovelli / Eric Maycock
  *
@@ -13,6 +13,12 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-07-02: Adding support for Inovelli Virtual Device Sync (VDS) SmartApp.
+ *              This app can be used in place of "child devices" to create virtual devices to 
+ *              individually control the fan or light in the new SmartThings app as well as
+ *              the new Google Home / Alexa integration.
+ *              More Info: https://vds.inovelli.com
  *
  *  2020-06-30: Fixes for local protection settings and some config parameter adjustments.
  *              Fix for renaming of child devices. 
@@ -39,11 +45,25 @@ metadata {
         attribute "firmware", "String"
         attribute "groups", "Number"
         
+        attribute "switch1", "string"
+        attribute "switch2", "string"
+        attribute "level1", "number"
+        attribute "level2", "number"
+
+        
         command "setAssociationGroup", ["number", "enum", "number", "number"] // group number, nodes, action (0 - remove, 1 - add), multi-channel endpoint (optional)
         command "childOn"
         command "childOff"
         command "childRefresh"
         command "childSetLevel"
+        
+        command "on1"
+        command "off1"
+        command "on2"
+        command "off2"
+        command "setLevel1"
+        command "setLevel2"
+        command "reset"
 
         fingerprint manufacturer: "031E", prod: "000E", model: "0001", deviceJoinName: "Inovelli Fan + Light"
         
@@ -124,7 +144,7 @@ def parse(description) {
     }
     
     //New SmartThings app is changing child device to a "placeholder" device type
-    checkChildTypes()
+    if (!useVDS) checkChildTypes()
     
     def now
     if(location.timeZone)
@@ -138,41 +158,54 @@ def parse(description) {
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd, ep = null) {
     if (debugEnable) log.debug "${device.displayName}: ${cmd} - ep${ep?ep:0}"
     if (infoEnable) log.info "${device.displayName}: Basic report received with value of ${cmd.value ? "on" : "off"} - ep${ep}"
-    if (ep) {
-        def event
-        def childDevice = childDevices.find {
-            it.deviceNetworkId == "$device.deviceNetworkId-ep00$ep"
-        }
-        if (childDevice) {
-            childDevice.sendEvent(name: "switch", value: cmd.value ? "on" : "off")
-            if (cmd.value && cmd.value <= 100) {
-            	childDevice.sendEvent(name: "level", value: cmd.value == 99 ? 100 : cmd.value)
-            }
-        }
-        if (cmd.value) {
-            event = [createEvent([name: "switch", value: "on"])]
-        } else {
-            def allOff = true
-            def children = childDevices
-            childDevice = children.find{it.deviceNetworkId.endsWith("ep001")}
-            if (childDevice?.currentState("switch")?.value != "off") allOff = false
-            childDevice = children.find{it.deviceNetworkId.endsWith("ep002")}
-            if (childDevice?.currentState("switch")?.value != "off") allOff = false
-
-            if (allOff) {
-                event = [createEvent([name: "switch", value: "off"])]
+    def events = []
+    //if (useVDS) {
+        if (ep) {
+            events << createEvent(name: "switch${ep?ep:""}", value: cmd.value ? "on" : "off") 
+            events << createEvent(name: "level${ep?ep:""}", value: cmd.value == 99 ? 100 : cmd.value)
+            if (cmd.value) {
+                events << createEvent([name: "switch", value: "on"])
             } else {
-                event = [createEvent([name: "switch", value: "on"])]
+                def allOff = true
+                if (device.currentState("switch${ep==1?2:1}")?.value != "off" || cmd.value ) allOff = false
+            
+                if (allOff) {
+                    events << createEvent(name: "switch", value: "off")
+                } else {
+                    events << createEvent(name: "switch", value: "on")
+                }
             }
         }
-        return event
-    } else {
-        //def result = createEvent(name: "switch", value: cmd.value ? "on" : "off", type: "digital")
-        //def cmds = []
-        //cmds << encap(zwave.switchMultilevelV2.switchMultilevelGet(), 1)
-        //cmds << encap(zwave.switchMultilevelV2.switchMultilevelGet(), 2)
-        //return [response(commands(cmds))] // returns the result of response()
-    }
+    //} else {
+        if (ep) {
+            def childDevice = childDevices.find {
+                it.deviceNetworkId == "$device.deviceNetworkId-ep00$ep"
+            }
+            if (childDevice) {
+                childDevice.sendEvent(name: "switch", value: cmd.value ? "on" : "off")
+                if (cmd.value && cmd.value <= 100) {
+            	    childDevice.sendEvent(name: "level", value: cmd.value == 99 ? 100 : cmd.value)
+                }
+            }
+            if (cmd.value) {
+                events << createEvent([name: "switch", value: "on"])
+            } else {
+                def allOff = true
+                def children = childDevices
+                childDevice = children.find{it.deviceNetworkId.endsWith("ep001")}
+                if (childDevice?.currentState("switch")?.value != "off") allOff = false
+                childDevice = children.find{it.deviceNetworkId.endsWith("ep002")}
+                if (childDevice?.currentState("switch")?.value != "off") allOff = false
+
+                if (allOff) {
+                    events << createEvent([name: "switch", value: "off"])
+                } else {
+                    events << createEvent([name: "switch", value: "on"])
+                }
+            }
+        }
+    //}
+    return events
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.multichannelassociationv2.MultiChannelAssociationReport cmd) {
@@ -229,41 +262,54 @@ def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cm
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd, ep = null) {
     if (debugEnable) log.debug "${device.displayName}: ${cmd} - ep${ep?ep:0}"
     if (infoEnable) log.info "${device.displayName}: Switch MultiLevel report received with value of ${cmd.value ? "on" : "off"} - ep${ep}"
-    if (ep) {
-        def event
-        def childDevice = childDevices.find {
-            it.deviceNetworkId == "$device.deviceNetworkId-ep00$ep"
-        }
-        if (childDevice) {
-            childDevice.sendEvent(name: "switch", value: cmd.value ? "on" : "off")
-            if (cmd.value && cmd.value <= 100) {
-            	childDevice.sendEvent(name: "level", value: cmd.value == 99 ? 100 : cmd.value)
-            }
-        }
-        if (cmd.value) {
-            event = [createEvent([name: "switch", value: "on"])]
-        } else {
-            def allOff = true
-            def children = childDevices
-            childDevice = children.find{it.deviceNetworkId.endsWith("ep001")}
-            if (childDevice?.currentState("switch")?.value != "off") allOff = false
-            childDevice = children.find{it.deviceNetworkId.endsWith("ep002")}
-            if (childDevice?.currentState("switch")?.value != "off") allOff = false
-
-            if (allOff) {
-                event = [createEvent([name: "switch", value: "off"])]
+    def events = []
+    //if (useVDS) {
+        if (ep) {
+            events << createEvent(name: "switch${ep?ep:""}", value: cmd.value ? "on" : "off") 
+            events << createEvent(name: "level${ep?ep:""}", value: cmd.value == 99 ? 100 : cmd.value)
+            if (cmd.value) {
+                events << createEvent([name: "switch", value: "on"])
             } else {
-                event = [createEvent([name: "switch", value: "on"])]
+                def allOff = true
+                if (device.currentState("switch${ep==1?2:1}")?.value != "off" || cmd.value ) allOff = false
+            
+                if (allOff) {
+                    events << createEvent(name: "switch", value: "off")
+                } else {
+                    events << createEvent(name: "switch", value: "on")
+                }
             }
         }
-        return event
-    } else {
-        //def result = createEvent(name: "switch", value: cmd.value ? "on" : "off", type: "digital")
-        //def cmds = []
-        //cmds << encap(zwave.switchMultilevelV2.switchMultilevelGet(), 1)
-        //cmds << encap(zwave.switchMultilevelV2.switchMultilevelGet(), 2)
-        //return [response(commands(cmds))] // returns the result of response()
-    }
+    //} else {
+        if (ep) {
+            def childDevice = childDevices.find {
+                it.deviceNetworkId == "$device.deviceNetworkId-ep00$ep"
+            }
+            if (childDevice) {
+                childDevice.sendEvent(name: "switch", value: cmd.value ? "on" : "off")
+                if (cmd.value && cmd.value <= 100) {
+            	    childDevice.sendEvent(name: "level", value: cmd.value == 99 ? 100 : cmd.value)
+                }
+            }
+            if (cmd.value) {
+                events << createEvent([name: "switch", value: "on"])
+            } else {
+                def allOff = true
+                def children = childDevices
+                childDevice = children.find{it.deviceNetworkId.endsWith("ep001")}
+                if (childDevice?.currentState("switch")?.value != "off") allOff = false
+                childDevice = children.find{it.deviceNetworkId.endsWith("ep002")}
+                if (childDevice?.currentState("switch")?.value != "off") allOff = false
+
+                if (allOff) {
+                    events << createEvent([name: "switch", value: "off"])
+                } else {
+                    events << createEvent([name: "switch", value: "on"])
+                }
+            }
+        }
+    //}
+    return events
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.indicatorv1.IndicatorReport cmd, ep=null) {
@@ -408,6 +454,48 @@ def stopNotification(ep = null){
     return commands(cmds)
 }
 
+def on1() {
+    log.debug "on1()"
+    return command(encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0xFF), 1))
+}
+
+def on2() {
+    log.debug "on2()"
+    return command(encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0xFF), 2))
+}
+
+def off1() {
+    log.debug "off1()"
+    return command(encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0x00), 1))
+}
+
+def off2() {
+    log.debug "off1()"
+    return command(encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0x00), 2))
+}
+
+def setLevel1(value, duration = null) {
+    def valueaux = value as Integer
+    def level = Math.max(Math.min(valueaux, 99), 0) 
+    if (duration == null) {
+        return command(encap(zwave.switchMultilevelV2.switchMultilevelSet(value: level), 1))
+    } else {
+        def dimmingDuration = duration < 128 ? duration : 128 + Math.round(duration / 60)
+        return command(encap(zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration), 1))
+    }
+}
+
+def setLevel2(value, duration = null) {
+    def valueaux = value as Integer
+    def level = Math.max(Math.min(valueaux, 99), 0)  
+    if (duration == null) {
+        return command(encap(zwave.switchMultilevelV2.switchMultilevelSet(value: level), 2))
+    } else {
+        def dimmingDuration = duration < 128 ? duration : 128 + Math.round(duration / 60)
+        return command(encap(zwave.switchMultilevelV2.switchMultilevelSet(value: level, dimmingDuration: dimmingDuration), 2))
+    }
+}
+
 def childSetLevel(String dni, value) {
     if (infoEnable) log.info "${device.displayName}: childSetLevel($dni, $value)"
     state.lastRan = now()
@@ -440,7 +528,7 @@ def childSetLevel(String dni, value) {
 	if(cmds) sendHubCommand(commands(cmds))
 }
 
-def childOn(String dni) {
+void childOn(String dni) {
     if (infoEnable) log.info "${device.displayName}: childOn($dni)"
     state.lastRan = now()
     def cmds = []
@@ -475,7 +563,7 @@ def childOn(String dni) {
     if(cmds) sendHubCommand(commands(cmds))
 }
 
-def childOff(String dni) {
+void childOff(String dni) {
     if (infoEnable) log.info "${device.displayName}: childOff($dni)"
     state.lastRan = now()
     def cmds = []
@@ -578,13 +666,14 @@ private checkChildTypes() {
 
 def logsOff(){
     log.warn "${device.displayName}: Disabling logging after timeout"
-    //device.updateSetting("debugEnable",[value:"false",type:"bool"])
-    device.updateSetting("infoEnable",[value:"false",type:"bool"])
+    //device.updateSetting("debugEnable",[value:"false",type:"boolean"])
+    device.updateSetting("infoEnable",[value:"false",type:"boolean"])
 }
 
 def initialize() {
     sendEvent(name: "checkInterval", value: 3 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
     sendEvent(name: "numberOfButtons", value: 9, displayed: true)
+    if (!useVDS) {
     if(!childExists("ep001")){
         def newChild = addChildDevice("Switch Level Child Device", "${device.deviceNetworkId}-ep001", null, [completedSetup: true, label: "${device.displayName} (Light)",
             isComponent: false, componentName: "ep001", componentLabel: "Light"
@@ -720,6 +809,7 @@ def initialize() {
             runIn(3, "sendAlert", [data: [message: "Failed to delete child device. Make sure the device is not in use by any SmartApp."]])
         }
     }}
+    }
     
     if (device.displayName != state.oldLabel) {
         def children = childDevices
@@ -847,6 +937,7 @@ def getParameterNumbers(){
 
 def generate_preferences()
 {
+    input "useVDS", "boolean", title: "Use Inovelli Virtual Device Sync", description: "Use the VDS smartapp instead of creating child devices. The app will create virtual devices that can be used in the new SmartThings app and Google Home / Alexa. More Info: https://vds.inovelli.com", required: false, defaultValue: false
     getParameterNumbers().each { i ->
         
         switch(getParameterInfo(i, "type"))
@@ -1442,8 +1533,7 @@ def generate_preferences()
                     5:"Pulse"]
     }
     input description: "Use the below options to enable child devices for the specified settings. This will allow you to adjust these settings using SmartApps such as Smart Lighting. If any of the options are enabled, make sure you have the appropriate child device handlers installed.\n(Firmware 1.02+)", title: "Child Devices", displayDuringSetup: false, type: "paragraph", element: "paragraph"
-    //input "enableDisableLocalChild", "boolean", title: "Disable Local Control", description: "", required: false, defaultValue: false
-    //input "enableDisableRemoteChild", "boolean", title: "Disable Remote Control", description: "", required: false, defaultValue: false
+
     input "enableDefaultLocalChild", "boolean", title: "Default Level (Local)", description: "", required: false, defaultValue: false
     input "enableDefaultZWaveChild", "boolean", title: "Default Level (Z-Wave)", description: "", required: false, defaultValue: false
     input name: "debugEnable", type: "boolean", title: "Enable debug logging", defaultValue: true
