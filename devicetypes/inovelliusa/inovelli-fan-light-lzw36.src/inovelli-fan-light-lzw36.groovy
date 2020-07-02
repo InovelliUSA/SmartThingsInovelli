@@ -159,7 +159,7 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd, ep = null) 
     if (debugEnable) log.debug "${device.displayName}: ${cmd} - ep${ep?ep:0}"
     if (infoEnable) log.info "${device.displayName}: Basic report received with value of ${cmd.value ? "on" : "off"} - ep${ep}"
     def events = []
-    //if (useVDS) {
+    if (useVDS) {
         if (ep) {
             events << createEvent(name: "switch${ep?ep:""}", value: cmd.value ? "on" : "off") 
             events << createEvent(name: "level${ep?ep:""}", value: cmd.value == 99 ? 100 : cmd.value)
@@ -176,7 +176,7 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd, ep = null) 
                 }
             }
         }
-    //} else {
+    } else {
         if (ep) {
             def childDevice = childDevices.find {
                 it.deviceNetworkId == "$device.deviceNetworkId-ep00$ep"
@@ -204,7 +204,7 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd, ep = null) 
                 }
             }
         }
-    //}
+    }
     return events
 }
 
@@ -263,7 +263,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelR
     if (debugEnable) log.debug "${device.displayName}: ${cmd} - ep${ep?ep:0}"
     if (infoEnable) log.info "${device.displayName}: Switch MultiLevel report received with value of ${cmd.value ? "on" : "off"} - ep${ep}"
     def events = []
-    //if (useVDS) {
+    if (useVDS) {
         if (ep) {
             events << createEvent(name: "switch${ep?ep:""}", value: cmd.value ? "on" : "off") 
             events << createEvent(name: "level${ep?ep:""}", value: cmd.value == 99 ? 100 : cmd.value)
@@ -280,7 +280,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelR
                 }
             }
         }
-    //} else {
+    } else {
         if (ep) {
             def childDevice = childDevices.find {
                 it.deviceNetworkId == "$device.deviceNetworkId-ep00$ep"
@@ -308,7 +308,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelR
                 }
             }
         }
-    //}
+    }
     return events
 }
 
@@ -470,7 +470,7 @@ def off1() {
 }
 
 def off2() {
-    log.debug "off1()"
+    log.debug "off2()"
     return command(encap(zwave.switchMultilevelV1.switchMultilevelSet(value: 0x00), 2))
 }
 
