@@ -1,5 +1,5 @@
 /**
- *  Copyright 2018 Eric Maycock
+ *  Copyright 2020 Eric Maycock
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -17,6 +17,9 @@ metadata {
 		capability "Actuator"
 		capability "Switch"
 		capability "Refresh"
+        
+                command "onPhysical"
+		command "offPhysical"
 	}
 
 	tiles(scale: 2) {
@@ -43,19 +46,55 @@ metadata {
 	}
 }
 
-
-void on() {
-	parent.childOn(device.deviceNetworkId)
+def parse(Map description) {
+    def eventMap
+    if (description.type == null) eventMap = [name:"$description.name", value:"$description.value"]
+    else eventMap = [name:"$description.name", value:"$description.value", type:"$description.type"]
+    createEvent(eventMap)
 }
 
-void off() {
-	parent.childOff(device.deviceNetworkId)
+def parse(description){
+    log.debug description
+    //if (description.name && description.value)sendEvent(name: description.name, value: description.value)
 }
 
-void refresh() {
-	parent.childRefresh(device.deviceNetworkId)
+def on() {
+    sendEvent(name:"switch", value:"on")
+	if (!parent.installedSmartApp) parent.childOn(device.deviceNetworkId)
+}
+
+def off() {
+    sendEvent(name:"switch", value:"off")
+	if (!parent.installedSmartApp) parent.childOff(device.deviceNetworkId)
+}
+
+def onPhysical() {
+	log.debug "$version onPhysical()"
+	sendEvent(name: "switch", value: "on", type: "physical")
+}
+
+def offPhysical() {
+	log.debug "$version offPhysical()"
+	sendEvent(name: "switch", value: "off", type: "physical")
+}
+
+def refresh() {
+	if (!parent.installedSmartApp) parent.childRefresh(device.deviceNetworkId)
 }
 
 def setLevel(value) {
-	parent.childSetLevel(device.deviceNetworkId, value)
+	log.debug "setLevel >> value: $value"
+	def level = Math.max(Math.min(value as Integer, 99), 0)
+	if (level > 0) {
+		sendEvent(name: "switch", value: "on")
+	} else {
+		sendEvent(name: "switch", value: "off")
+	}
+	sendEvent(name: "level", value: level, unit: "%")
+    if (!parent.installedSmartApp) parent.childSetLevel(device.deviceNetworkId, value)
+}
+
+def setLevel(value, duration) {
+	log.debug "setLevel >> value: $value, duration: $duration"
+	setLevel(value)
 }
