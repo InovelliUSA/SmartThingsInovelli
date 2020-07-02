@@ -21,9 +21,9 @@ definition(
    author: "Eric Maycock",
    description: "Creates virtual devices and keeps them in sync with the selected physical device. Intended to be used with devices with multiple channels: LZW36 Fan + Light, 2-Channel Plug, etc.",
    category: "Convenience",
-   iconUrl: "https://github.com/InovelliUSA/SmartThingsInovelli/raw/master/smartapps/InovelliUSA/inovelli-virtual-device-sync.src/inovelli-virtual-device-sync.png",
-   iconX2Url: "https://github.com/InovelliUSA/SmartThingsInovelli/raw/master/smartapps/InovelliUSA/inovelli-virtual-device-sync.src/inovelli-virtual-device-sync-2x.png",
-   iconX3Url: "https://github.com/InovelliUSA/SmartThingsInovelli/raw/master/smartapps/InovelliUSA/inovelli-virtual-device-sync.src/inovelli-virtual-device-sync-3x.png"
+   iconUrl: "https://raw.githubusercontent.com/InovelliUSA/SmartThingsInovelli/master/smartapps/inovelliusa/inovelli-virtual-device-sync.src/inovelli-virtual-device-sync.png",
+   iconX2Url: "https://raw.githubusercontent.com/InovelliUSA/SmartThingsInovelli/master/smartapps/inovelliusa/inovelli-virtual-device-sync.src/inovelli-virtual-device-sync-2x.png",
+   iconX3Url: "https://raw.githubusercontent.com/InovelliUSA/SmartThingsInovelli/master/smartapps/inovelliusa/inovelli-virtual-device-sync.src/inovelli-virtual-device-sync-3x.png"
 )
 
 preferences {
