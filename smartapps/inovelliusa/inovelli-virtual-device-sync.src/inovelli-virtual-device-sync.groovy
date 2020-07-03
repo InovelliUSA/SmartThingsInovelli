@@ -39,19 +39,23 @@ def setupPage() {
     section { 
         if(!isVirtualConfigured()){
            input "physical", "capability.switch", title: "Which Physical Device", multiple: false, required: true, submitOnChange: true
-           if(physical != null){
+           if(physical){
               paragraph "Device Handler: $physical.typeName\r\n\r\nDetected Number of Endpoints: ${getEndpoints()}\r\n\r\nRecommended Type: ${getType()}"
               input "virtualSwitchType", "enum", title: "Virtual Switch Type", value: getType() , multiple: false, required: true, options: ["Switch","Energy Switch","Dimmer"]
               app.updateSetting("virtualSwitchType", getType())
-           }
+           } 
            href "createVirtual", title:"Create Virtual Devices", description:"Create virtual devices"
-        }else{
+        } else {
            def switchNames = ""
            getChildDevices().each {
                switchNames = switchNames + it.displayName + "\r\n"
            }
-           paragraph "Chosen Device: $physical\r\n\r\nTo change to a different device, please remove the virtual devices below."
-           paragraph "Device Handler: $physical.typeName\r\n\r\nDetected Number of Endpoints: ${getEndpoints()}\r\n\r\nRecommended Type: ${getType()}\r\n\r\nVirtual Switches have been created. They will be kept in sync with the physical switch chosen above\r\n\r\n$switchNames"
+           paragraph "Chosen Device: ${physical?physical:'None'}\r\n\r\nTo change to a different device, please remove the virtual devices below."
+           if (!physical) {
+               paragraph "Physical device has been removed but virtual devices remain. Please remove virtual devices below."
+           } else {
+               paragraph "Device Handler: $physical.typeName\r\n\r\nDetected Number of Endpoints: ${getEndpoints()}\r\n\r\nRecommended Type: ${getType()}\r\n\r\nVirtual Switches have been created. They will be kept in sync with the physical switch chosen above\r\n\r\n$switchNames"
+           }
            href "removeVirtual", title:"Remove Virtual Devices", description:"Remove virtual devices"
         }
     }
@@ -209,7 +213,6 @@ def virtualHandler(evt) {
     getChildDevices().each {
        if (evt.deviceId == it.id) {
           def switchNumber = it.deviceNetworkId.split("/")[1]
-          log.debug switchNumber
              switch (evt.value){
                 case "setLevel":
                    physical."setLevel${switchNumber}"(it.currentValue("level"))
