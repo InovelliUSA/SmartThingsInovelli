@@ -118,7 +118,7 @@ def createVirtualDevice() {
              } else if (virtualSwitchType != null && virtualSwitchType == "Energy Switch") {
                 switchType = "Simulated Energy Switch"
              } else {
-                switchType = "Simulated Dimmer"
+                switchType = "Switch Level Child Device"
              }
              def child = addChildDevice("InovelliUSA", switchType, getDeviceID(i), null, [name: getDeviceID(i), label: switchName, completedSetup: true])
           }   
