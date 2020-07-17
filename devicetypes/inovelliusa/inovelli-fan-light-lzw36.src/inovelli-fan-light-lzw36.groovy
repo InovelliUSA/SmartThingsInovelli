@@ -99,6 +99,7 @@ metadata {
     simulator {}
     
     preferences {
+        input "useVDS", "boolean", title: "Use Inovelli Virtual Device Sync\n\nUse the VDS smartapp instead of creating child devices. The app will create virtual devices that can be used in the new SmartThings app and Google Home / Alexa. More Info: https://vds.inovelli.com", description: "", required: false, defaultValue: "false"
         input "parameter1", "number",
             title: "Dimming Speed: This changes the speed in which the attached light dims up or down. A setting of 0 should turn the light immediately on or off (almost like an on/off switch). Increasing the value should slow down the transition speed.\nRange: 0..100\nDefault: 4",
             range: "0..100"
@@ -654,7 +655,7 @@ def parse(description) {
     }
     
     //New SmartThings app is changing child device to a "placeholder" device type
-    checkChildTypes()
+        if (useVDS != "true") checkChildTypes()
     
     def now
     if(location.timeZone)
@@ -1225,8 +1226,10 @@ def initialize() {
     sendEvent(name: "numberOfButtons", value: 6, displayed: false)
     sendEvent(name: "supportedButtonValues", value:JsonOutput.toJson(["pushed","held","pushed_2x","pushed_3x","pushed_4x","pushed_5x"]), displayed:false)
     
-    addChild("ep001", "Light", "InovelliUSA", "Switch Level Child Device", false)
-    addChild("ep002", "Fan", "InovelliUSA", "Switch Level Child Device", false)
+    if (useVDS != "true") {
+        addChild("ep001", "Light", "InovelliUSA", "Switch Level Child Device", false)
+        addChild("ep002", "Fan", "InovelliUSA", "Switch Level Child Device", false)
+    }
 
     if (enableDefaultLocalChild == "true") addChild("ep112", "Default Local Level", "InovelliUSA", "Switch Level Child Device", false)
     else deleteChild("ep112")
@@ -1307,8 +1310,6 @@ def initialize() {
         childDevice.setLabel("${device.displayName} (Fan)")
     }
     state.oldLabel = device.displayName
-    
-    checkChildTypes()
         
     /*
     sendEvent([name:"pressUpX1", value:pressUpX1Label? "${pressUpX1Label} ▲" : "Tap ▲", displayed: false])
