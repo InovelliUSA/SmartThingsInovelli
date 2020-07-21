@@ -305,11 +305,7 @@ def zwaveEvent(physicalgraph.zwave.commands.wakeupv1.WakeUpNotification cmd)
 
     def cmds = initialize()
     
-    if (!state.lastBatteryReport || (now() - state.lastBatteryReport) / 60000 >= 60 * 24)
-    {
-        if (infoEnable != false) log.info "${device.label?device.label:device.name}: Over 24hr since last battery report. Requesting report"
-        cmds << zwave.batteryV1.batteryGet()
-    }
+    cmds << zwave.batteryV1.batteryGet()
     
     cmds << zwave.wakeUpV1.wakeUpNoMoreInformation()
     
