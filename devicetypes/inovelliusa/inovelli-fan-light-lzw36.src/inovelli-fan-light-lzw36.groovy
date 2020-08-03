@@ -1,7 +1,7 @@
 /**
  *  Inovelli Fan + Light LZW36
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-07-17
+ *  Date: 2020-08-03
  *
  *  ******************************************************************************************************
  *
@@ -24,6 +24,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-08-03: Adding "reset()" to reset the energy accumulation numbers.
  *
  *  2020-07-17: Added child devices for "Light LED Color", "Light LED Color When OFF", "Fan LED Color", "Fan LED Color When OFF"
  *              You need to install the child device below for this to work:
@@ -1153,6 +1155,15 @@ def refresh() {
     return commands(cmds, 100)
 }
 
+def reset() {
+    if (infoEnable != "false") log.info "${device.displayName}: Resetting energy statistics"
+    def cmds = []
+    cmds << zwave.meterV2.meterReset()
+    cmds << zwave.meterV2.meterGet(scale: 0)
+    cmds << zwave.meterV2.meterGet(scale: 2)
+    commands(cmds, 1000)
+}
+
 def installed() {
     if (infoEnable != "false") log.info "installed()"
 }
@@ -1187,7 +1198,7 @@ private checkChildTypes() {
 }
 
 def debugLogsOff(){
-    log.warn "${device.label?device.label:device.name}: Disabling debug logging after timeout"
+    //log.warn "${device.label?device.label:device.name}: Disabling debug logging after timeout"
     device.updateSetting("debugEnable", [type: "boolean", value: "false"])
 }
 
