@@ -25,6 +25,8 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  2020-08-04: Fixing number of buttons being reported. After update you will need to change a preference to update the value.
+ *
  *  2020-08-03: Adding "reset()" to reset the energy accumulation numbers.
  *
  *  2020-07-17: Added child devices for "Light LED Color", "Light LED Color When OFF", "Fan LED Color", "Fan LED Color When OFF"
@@ -1234,7 +1236,7 @@ private deleteChild(id){
 
 def initialize() {
     sendEvent(name: "checkInterval", value: 3 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
-    sendEvent(name: "numberOfButtons", value: 6, displayed: false)
+    sendEvent(name: "numberOfButtons", value: 9, displayed: false)
     sendEvent(name: "supportedButtonValues", value:JsonOutput.toJson(["pushed","held","pushed_2x","pushed_3x","pushed_4x","pushed_5x"]), displayed:false)
     
     if (useVDS != "true") {
