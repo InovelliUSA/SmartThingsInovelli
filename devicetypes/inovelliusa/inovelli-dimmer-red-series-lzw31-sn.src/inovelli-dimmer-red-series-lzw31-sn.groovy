@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-08-12
+ *  Date: 2020-08-14
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -13,6 +13,10 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-08-14: Fix for SmartLighting app not working with recent change in new SmartThings app.
+ *              Device needs to receive a report after the device handler is updated for this to start working.
+ *              User can force a report by turning the device on or off, refreshing, etc.
  *
  *  2020-08-12: Fixing on(), off(), & setLevel() commands to match device preference descriptions. Use a different method
  *              to determine physical vs digital dimmer events.
@@ -54,6 +58,7 @@
  */
  
 import groovy.transform.Field
+import groovy.json.JsonOutput
  
 metadata {
     definition (name: "Inovelli Dimmer Red Series LZW31-SN", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-dimmer-power-energy") {
@@ -751,6 +756,10 @@ def initialize() {
     sendEvent(name: "checkInterval", value: 3 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
     sendEvent(name: "numberOfButtons", value: 8, displayed: true)
     
+    if (!device.currentValue("supportedButtonValues")) {
+        sendEvent(name: "supportedButtonValues", value:JsonOutput.toJson(["pushed","held"]), displayed:false)
+    }
+    
     if (enableDefaultLocalChild == "true") addChild("ep9", "Default Local Level", "InovelliUSA", "Switch Level Child Device", false)
     else deleteChild("ep9")
     if (enableDefaultZWaveChild == "true") addChild("ep10", "Default Z-Wave Level", "InovelliUSA", "Switch Level Child Device", false)
@@ -1174,10 +1183,15 @@ def parse(description) {
     }
     def now
     if(location.timeZone)
-    now = new Date().format("yyyy MMM dd EEE h:mm:ss a", location.timeZone)
+        now = new Date().format("yyyy MMM dd EEE h:mm:ss a", location.timeZone)
     else
-    now = new Date().format("yyyy MMM dd EEE h:mm:ss a")
+        now = new Date().format("yyyy MMM dd EEE h:mm:ss a")
     sendEvent(name: "lastActivity", value: now, displayed:false)
+    
+    if (!device.currentValue("supportedButtonValues")) {
+        sendEvent(name: "supportedButtonValues", value:JsonOutput.toJson(["pushed","held"]), displayed:false)
+    }
+    
     result
 }
 
