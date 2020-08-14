@@ -1,7 +1,7 @@
 /**
  *  Inovelli Switch Red Series
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-07-13
+ *  Date: 2020-08-14
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -13,6 +13,10 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-08-14: Fix for SmartLighting app not working with recent change in new SmartThings app.
+ *              Device needs to receive a report after the device handler is updated for this to start working.
+ *              User can force a report by turning the device on or off, refreshing, etc.
  *
  *  2020-07-06: Added a configuration parameter (51) that allows you to disable the 700ms delay when turing switch on/off from the wall.
  *              Also adding white LED option to LED colors. Both of these require firmware 1.19+
@@ -47,6 +51,9 @@
  *              Adding the ability to enable z-wave "rf protection" to disable control from z-wave commands.
  *
  */
+ 
+import groovy.json.JsonOutput
+import groovy.transform.Field
  
 metadata {
     definition (name: "Inovelli Switch Red Series LZW30-SN", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-switch-power-energy") {
@@ -722,6 +729,10 @@ def initialize() {
     sendEvent(name: "checkInterval", value: 3 * 60 * 60 + 2 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID, offlinePingable: "1"])
     sendEvent(name: "numberOfButtons", value: 8, displayed: true)
     
+    if (!device.currentValue("supportedButtonValues")) {
+        sendEvent(name: "supportedButtonValues", value:JsonOutput.toJson(["pushed","held"]), displayed:false)
+    }
+    
     if (enableDisableLocalChild == "true") addChild("ep101", "Disable Local Control", "smartthings", "Child Switch", false)
     else deleteChild("ep101")
     if (enableDisableRemoteChild == "true") addChild("ep102", "Disable Remote Control", "smartthings", "Child Switch", false)
@@ -1051,10 +1062,15 @@ def parse(description) {
     }
     def now
     if(location.timeZone)
-    now = new Date().format("yyyy MMM dd EEE h:mm:ss a", location.timeZone)
+        now = new Date().format("yyyy MMM dd EEE h:mm:ss a", location.timeZone)
     else
-    now = new Date().format("yyyy MMM dd EEE h:mm:ss a")
+        now = new Date().format("yyyy MMM dd EEE h:mm:ss a")
     sendEvent(name: "lastActivity", value: now, displayed:false)
+    
+    if (!device.currentValue("supportedButtonValues")) {
+        sendEvent(name: "supportedButtonValues", value:JsonOutput.toJson(["pushed","held"]), displayed:false)
+    }
+    
     result
 }
 
