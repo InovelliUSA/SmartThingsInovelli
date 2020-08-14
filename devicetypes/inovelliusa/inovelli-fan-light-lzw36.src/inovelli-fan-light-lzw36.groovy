@@ -1,7 +1,7 @@
 /**
  *  Inovelli Fan + Light LZW36
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-08-04
+ *  Date: 2020-08-14
  *
  *  ******************************************************************************************************
  *
@@ -24,6 +24,10 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-08-14: Added configuration parameter 51 for firmware 1.36+ 
+ *
+ *  2020-08-05: Adding cycleSpeed() command for use with fan child device.
  *
  *  2020-08-04: Fixing number of buttons being reported. After update you will need to change a preference to update the value.
  *
@@ -85,6 +89,8 @@ metadata {
         command "childOff"
         command "childRefresh"
         command "childSetLevel"
+        command "setSpeed"
+        command "cycleSpeed"
         
         command "on1"
         command "off1"
@@ -188,6 +194,9 @@ metadata {
         input "parameter31", "enum",
             title: "Local Protection Settings: Enable local protection on these buttons.\nDefault: None",
             options: ["0":"None", "1":"Light", "2":"Fan", "3":"Both"]
+        input "parameter51", "enum",
+            title: "Disable Physical On/Off Delay: The 700ms delay that occurs after pressing the physical button to turn the switch on/off is removed. Consequently this also removes the following scenes: 2x, 3x, 4x, 5x tap. Still working are the 1x tap, held, released, and the level up/down scenes. (firmware 1.36+).\nDefault: No",
+            options: ["1":"No (Default)", "0":"Yes"]
         
         [201,202,203,204,205].each { i ->
             input "parameter24-${i}a", "enum", title: "Light Notification ${i-200} - Color", description: "Tap to set", 
@@ -274,6 +283,16 @@ metadata {
                 required: false, options: [
                     0:"Off", 1:"Solid", 2:"Chase", 3:"Fast Blink", 4:"Slow Blink", 5:"Pulse"]
         }
+        input description: "Use the options below to setup associations. Associations can be used to directly control one z-wave device from another.",
+            title: "Associations", displayDuringSetup: false, type: "paragraph", element: "paragraph"
+        input "group2e1", "string",
+            title: "Multi-channel Group 2 Endpoint 1: Sends On/Off commands when you press the light up or light down button. This should be a device id hex value of the device you are wanting to control."
+        input "group4e1", "string",
+            title: "Multi-channel Group 4 Endpoint 1: Sends level up/down commands when you hold the light up or light down button. This should be a device id hex value of the device you are wanting to control."
+        input "group5e1", "string",
+            title: "Multi-channel Group 5 Endpoint 2: Sends On/Off commands when you press the light up or light down button. This should be a device id hex value of the device you are wanting to control."
+        input "group7e1", "string",
+            title: "Multi-channel Group 7 Endpoint 2: Sends level up/down commands when you hold the light up or light down button. This should be a device id hex value of the device you are wanting to control."
         input description: "Use the below options to enable child devices for the specified settings. This will allow you to adjust these settings using " +
             "SmartApps such as Smart Lighting.", title: "Child Devices", displayDuringSetup: false, type: "paragraph", element: "paragraph"
         input "enableDefaultLocalChild", "boolean", title: "Create \"Default Level (Local)\" Child Device", description: "", required: false, defaultValue: "false"
@@ -617,7 +636,17 @@ metadata {
         size: 1,
         type: "enum",
         value: null
-        ]    
+        ],
+    parameter051 : [
+        number: 51,
+        name:"Disable Physical On/Off Delay",
+        description: "The 700ms delay that occurs after pressing the physical button to turn the switch on/off is removed. Consequently this also removes the following scenes: 2x, 3x, 4x, 5x tap. Still working are the 1x tap, held, released, and the level up/down scenes. (firmware 1.36+)",
+        range: ["1":"No (Default)", "0":"Yes"],
+        default: 1,
+        size: 1,
+        type: "enum",
+        value: null
+        ]  
 ]
 
 private getCommandClassVersions() {
@@ -1121,6 +1150,56 @@ void componentSetColorTemperature(dni, value) {
     if(cmds) sendHubCommand(commands(cmds))
 }
 
+def setSpeed(value){
+    if (infoEnable) log.info "${device.label?device.label:device.name}: setSpeed($value)"
+    def childDevice = childDevices.find{it.deviceNetworkId.endsWith("ep002")}
+    if(childDevice) childDevice.sendEvent(name: "speed", value: value)
+    switch (value) {
+        case "low":
+            return childSetLevel("${device.deviceNetworkId}-ep002",33)
+        break
+        case "medium-low":
+        case "medium":
+        case "medium-high":
+            return childSetLevel("${device.deviceNetworkId}-ep002",66)
+        break
+        case "high":
+            return childSetLevel("${device.deviceNetworkId}-ep002",99)
+        break
+        case "auto":
+            return childSetLevel("${device.deviceNetworkId}-ep002",1)
+        break
+        case "on":
+            return childOn("${device.deviceNetworkId}-ep002")
+        break
+        case "off":
+            return childOff("${device.deviceNetworkId}-ep002")
+        break
+    }
+}
+
+def cycleSpeed() {
+    def currentSpeed = "off"
+    def childDevice = childDevices.find{it.deviceNetworkId.endsWith("ep002")}
+    if (childDevice) currentSpeed = childDevice.currentValue("speed")? childDevice.currentValue("speed") : "off"
+    switch (currentSpeed) {
+        case "off":
+            return childSetLevel("${device.deviceNetworkId}-ep002",33)
+        break
+        case "low":
+            return childSetLevel("${device.deviceNetworkId}-ep002",66)
+        break
+        case "medium-low":
+        case "medium":
+        case "medium-high":
+            return childSetLevel("${device.deviceNetworkId}-ep002",99)
+        break
+        case "high":
+            return childOff("${device.deviceNetworkId}-ep002")
+        break
+    }
+}
+
 private huePercentToValue(value){
     return value<=2?0:(value>=98?360:value/100*360)
 }
@@ -1341,6 +1420,23 @@ def initialize() {
     
     def cmds = processAssociations()
     
+    if (group2e1 != "" && group2e1 != null) {
+        cmds << zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 2, nodeId: [0,Integer.parseInt(group2e1,16),1])
+        cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: 2)
+    }
+    if (group4e1 != "" && group4e1 != null) {
+        cmds << zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 4, nodeId: [0,Integer.parseInt(group4e1,16),1])
+        cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: 4)
+    }
+    if (group5e1 != "" && group5e1 != null) {
+        cmds << zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 5, nodeId: [0,Integer.parseInt(group5e1,16),2])
+        cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: 5)
+    }
+    if (group7e1 != "" && group7e1 != null) {
+        cmds << zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 7, nodeId: [0,Integer.parseInt(group7e1,16),2])
+        cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: 7)
+    }
+    
     if(!state.associationMC1) {
        log.debug "Adding MultiChannel association group 1"
        cmds << zwave.associationV2.associationRemove(groupingIdentifier: 1, nodeId: [])
@@ -1426,7 +1522,7 @@ def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd, ep=null) {
 }
 
 def getParameterNumbers(){
-    return [1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,26,27,28,29,30,31]
+    return [1,2,3,4,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21,22,23,26,27,28,29,30,31,51]
 }
 
 private encap(cmd, endpoint) {
