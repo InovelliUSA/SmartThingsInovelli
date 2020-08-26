@@ -21,7 +21,7 @@
  */
  
 metadata {
-    definition(name: "Inovelli 2-Channel Outdoor Smart Plug NZW97", namespace: "InovelliUSA", author: "Eric Maycock") {
+    definition(name: "Inovelli 2-Channel Outdoor Smart Plug NZW97", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-switch") {
         capability "Actuator"
         capability "Sensor"
         capability "Switch"
