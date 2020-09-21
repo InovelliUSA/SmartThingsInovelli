@@ -1,7 +1,7 @@
 /**
  *  Inovelli Switch LZW30
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-07-13
+ *  Date: 2020-09-21
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -13,6 +13,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-09-21: Changing how child devices are created for better compatibility with new app.  
  *
  *  2020-07-06: Added a configuration parameter (51) that allows you to disable the 700ms delay when turing switch on/off from the wall.
  *              Also adding white LED option to LED colors. Both of these require firmware 1.19+
@@ -305,7 +307,7 @@ private addChild(id, label, namespace, driver, isComponent){
         try {
             def newChild = addChildDevice(namespace, driver, "${device.deviceNetworkId}-${id}", null,
                     [completedSetup: true, label: "${device.displayName} (${label})",
-                    isComponent: isComponent, componentName: id, componentLabel: label])
+                    isComponent: isComponent])
             newChild.sendEvent(name:"switch", value:"off")
         } catch (e) {
             runIn(3, "sendAlert", [data: [message: "Child device creation failed. Make sure the device handler for \"${driver}\" with a namespace of ${namespace} is installed"]])
