@@ -287,7 +287,7 @@ private void createChildDevices() {
     state.oldLabel = device.label
     try {
         for (i in 1..2) {
-            addChildDevice("Switch Child Device", "${device.deviceNetworkId}-ep${i}", null, [completedSetup: true, label: "${device.displayName} (CH${i})",
+            addChildDevice("smartthings", "Child Switch", "${device.deviceNetworkId}-ep${i}", null, [completedSetup: true, label: "${device.displayName} (CH${i})",
                 isComponent: false
             ])
         }
