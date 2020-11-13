@@ -1,7 +1,16 @@
 /**
  *  Inovelli Switch LZW30
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-09-21
+ *  Date: 2020-11-13
+ *
+ *  ******************************************************************************************************
+ *
+ *  OPTIONAL CHILD DEVICE HANDLERS:
+ *      LED Bar: In the device settings you can enable up an RGBW child devices that can be used to change the color and intesity of the LED bar.
+ *        https://raw.githubusercontent.com/InovelliUSA/SmartThingsInovelli/master/devicetypes/inovelliusa/switch-level-child-device.src/switch-level-child-device.groovy
+ *        https://raw.githubusercontent.com/InovelliUSA/SmartThingsInovelli/master/devicetypes/inovelliusa/rgbw-child-device.src/rgbw-child-device.groovy
+ *
+ *  ******************************************************************************************************
  *
  *  Copyright 2020 Eric Maycock / Inovelli
  *
@@ -13,6 +22,10 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2020-11-13: Adding option to create child devices for LED Color & Intensity when on and Intensity when off.
+ *              This will allow you to control those configuration options easily in other apps. This requires
+ *              child device handlers to be installed that are listed above.
  *
  *  2020-09-21: Changing how child devices are created for better compatibility with new app.  
  *
@@ -44,6 +57,14 @@
  *              Adding the ability to enable z-wave "rf protection" to disable control from z-wave commands.
  *
  */
+ 
+import groovy.json.JsonOutput
+import groovy.transform.Field
+
+@Field static List ledNotificationEndpoints = [8]
+@Field static Map ledColorEndpoints = [103:5]
+@Field static Map ledIntensityEndpoints = [103:6]
+@Field static Map ledIntensityOffEndpoints = [104:7]
  
 metadata {
     definition (name: "Inovelli Switch LZW30", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-switch") {
@@ -147,6 +168,8 @@ def generate_preferences()
     input description: "Use the below options to enable child devices for the specified settings. This will allow you to adjust these settings using SmartApps such as Smart Lighting. If any of the options are enabled, make sure you have the appropriate child device handlers installed.\n(Firmware 1.02+)", title: "Child Devices", displayDuringSetup: false, type: "paragraph", element: "paragraph"
     input "enableDisableLocalChild", "boolean", title: "Create \"Disable Local Control\" Child Device", description: "", required: false, defaultValue: "false"
     input "enableDisableRemoteChild", "boolean", title: "Create \"Disable Remote Control\" Child Device", description: "", required: false, defaultValue: "false"
+    input "enableLED1Child", "boolean", title: "Create \"Light LED\" Child Device", description: "", required: false, defaultValue: "false"
+    input "enableLED1OffChild", "boolean", title: "Create \"Light LED When Off\" Child Device", description: "", required: false, defaultValue: "false"
     input name: "debugEnable", type: "boolean", title: "Enable Debug Logging", defaultValue: "true"
     input name: "infoEnable", type: "boolean", title: "Enable Informational Logging", defaultValue: "true"
 }
@@ -220,6 +243,14 @@ void childSetLevel(String dni, value) {
             cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionSet(localProtectionState : state.localProtectionState? state.localProtectionState:0, rfProtectionState : level > 0 ? 1 : 0) ))
             cmds << new physicalgraph.device.HubAction(command(zwave.protectionV2.protectionGet() ))
         break
+        case 103:
+            cmds << setParameter(ledIntensityEndpoints[channelNumber(dni)], Math.round(level/10), 1)
+            cmds << getParameter(ledIntensityEndpoints[channelNumber(dni)])
+        break
+        case 104:
+            cmds << setParameter(ledIntensityOffEndpoints[channelNumber(dni)], Math.round(level/10), 1)
+            cmds << getParameter(ledIntensityOffEndpoints[channelNumber(dni)])
+        break
     }
 	sendHubCommand(cmds, 1000)
 }
@@ -275,6 +306,34 @@ def childExists(ep) {
         return true
     else
         return false
+}
+
+void componentSetColor(dni, value) {
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: dni, componentSetColor($value)"
+	if (value.hue == null || value.saturation == null) return
+	def ledColor = Math.round(huePercentToZwaveValue(value.hue))
+    state.lastRan = now()
+	if (infoEnable) log.info "${device.label?device.label:device.name}: Setting LED color value to $ledColor & LED intensity to $ledLevel"
+    def cmds = []
+    if (value.level != null) {
+        def ledLevel = Math.round(value.level/10)
+        cmds << setParameter(ledIntensityEndpoints[channelNumber(dni)], ledLevel, 1)
+        cmds << getParameter(ledIntensityEndpoints[channelNumber(dni)])
+    }
+    cmds << setParameter(ledColorEndpoints[channelNumber(dni)], ledColor, 2)
+    cmds << getParameter(ledColorEndpoints[channelNumber(dni)])
+    if(cmds) sendHubCommand(commands(cmds))
+}
+
+void componentSetColorTemperature(dni, value) {
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: dni, componentSetColorTemperature($value)"
+    if (infoEnable) log.info "${device.label?device.label:device.name}: Setting LED color value to 255"
+    state.lastRan = now()
+    state.colorTemperature = value
+    def cmds = []
+    cmds << setParameter(ledColorEndpoints[channelNumber(dni)], 255, 2)
+    cmds << getParameter(ledColorEndpoints[channelNumber(dni)])
+    if(cmds) sendHubCommand(commands(cmds))
 }
 
 def installed() {
@@ -334,6 +393,10 @@ def initialize() {
     else deleteChild("ep101")
     if (enableDisableRemoteChild == "true") addChild("ep102", "Disable Remote Control", "smartthings", "Child Switch", false)
     else deleteChild("ep102")
+    if (enableLED1Child == "true") addChild("ep103", "Light LED", "InovelliUSA", "RGBW Child Device", false)
+    else deleteChild("ep103")
+    if (enableLED1OffChild == "true") addChild("ep104", "Light LED - When Off", "InovelliUSA", "Switch Level Child Device", false)
+    else deleteChild("ep104")
     
     if (device.label != state.oldLabel) {
         def children = childDevices
@@ -518,18 +581,31 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
     def integerValue = cmd2Integer(cmd.configurationValue)
     switch (cmd.parameterNumber) {
         case 5:
-            if(integerValue==0||integerValue==21||integerValue==42||integerValue==85||integerValue==127||integerValue==170||integerValue==212||integerValue==234){
-                //device.updateSetting("parameter${cmd.parameterNumber}",[value:"${integerValue}",type:"number"])
-                //device.removeSetting("parameter${cmd.parameterNumber}custom")
-            } else {
-                //device.removeSetting("parameter${cmd.parameterNumber}")
-                //device.updateSetting("parameter${cmd.parameterNumber}custom",[value:Math.round(zwaveValueToHueValue(integerValue)),type:"number"])
+            def childDevice = childDevices.find{it.deviceNetworkId.endsWith("ep${ledColorEndpoints.find { it.value == cmd.parameterNumber }?.key}")}
+            if (childDevice) {
+                if (integerValue == 255) {
+                    childDevice.sendEvent(name: "colorTemperature", value: state.colorTemperature?state.colorTemperature:0)
+                    childDevice.sendEvent(name: "colorMode", value: "CT", descriptionText: "${device.getDisplayName()} color mode is CT")
+                } else {
+                    childDevice.sendEvent(name:"hue", value:"${Math.round(zwaveValueToHuePercent(integerValue))}")
+                    childDevice.sendEvent(name:"saturation", value:"100")
+                    childDevice.sendEvent(name: "colorMode", value: "RGB", descriptionText: "${device.getDisplayName()} color mode is RGB")
+                }
             }
-            sendEvent(name:"hue", value:"${Math.round(zwaveValueToHuePercent(integerValue))}")
-            sendEvent(name:"saturation", value:"100")
         break
         case 6:
-            //device.updateSetting("parameter${cmd.parameterNumber}",[value:"${integerValue}",type:"enum"])
+            def childDevice = childDevices.find{it.deviceNetworkId.endsWith("ep${ledIntensityEndpoints.find { it.value == cmd.parameterNumber }?.key}")}
+            if (childDevice) {
+                childDevice.sendEvent(name:"level", value:"${integerValue*10}")
+                childDevice.sendEvent(name:"switch", value:"${integerValue==0?"off":"on"}")
+            }
+        break
+        case 7:
+            def childDevice = childDevices.find{it.deviceNetworkId.endsWith("ep${ledIntensityOffEndpoints.find { it.value == cmd.parameterNumber }?.key}")}
+            if (childDevice) {
+                childDevice.sendEvent(name:"level", value:"${integerValue*10}")
+                childDevice.sendEvent(name:"switch", value:"${integerValue==0?"off":"on"}")
+            }
         break
     }
 }
