@@ -1,17 +1,17 @@
 /**
  *  Inovelli Light Strip LZW45
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-01-05
+ *  Date: 2021-01-06
  *  Platform: SmartThings
  *
  *  ******************************************************************************************************
  *
  *  IMPORTANT INFORMATION:
- *      Quick Effect Calculator. Save a copy to your Google Drive to edit it. You can create Quick Effect child
- *      devices is the preferences section to get the desired effect. 
- *      https://docs.google.com/spreadsheets/d/1reGdEL9Nkf04jN3GQVWqMcfJtuVpEfObQQn5Vf9tVmU/edit?usp=sharing
- * 
- *      Firmware version required: 1.20 - Check https://files.inovelli.com/firmware/LZW45/Beta/ for latest version
+ *      Quick Effect Calculator. You can create Quick Effect child devices is the preferences 
+ *      section to get the desired effect. 
+ *
+ *      You can use the custom effect calculator located below. Thank you Nathan Fiscus for making it!:
+ *      https://nathanfiscus.github.io/inovelli-led-strip-toolbox/
  *
  *  ******************************************************************************************************
  *
@@ -25,26 +25,27 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
  */
 
 import groovy.transform.Field
 
 metadata {
-	definition (name: "Inovelli Light Strip LZW45", namespace: "InovelliUSA", author: "InovelliUSA", ocfDeviceType: "oic.d.light", vid: "generic-rgbw-color-bulb") {
-		capability "ColorTemperature"
-		capability "ColorControl"
-		capability "Switch"
-		capability "Refresh"
-		capability "Actuator"
-		capability "Sensor"
-		capability "Configuration"
-		capability "ColorMode"
+    definition (name: "Inovelli Light Strip LZW45", namespace: "InovelliUSA", author: "InovelliUSA", ocfDeviceType: "oic.d.light", vid: "generic-rgbw-color-bulb") {
+        capability "ColorTemperature"
+        capability "ColorControl"
+        capability "Switch"
+        capability "Refresh"
+        capability "Actuator"
+        capability "Sensor"
+        capability "Configuration"
+        capability "ColorMode"
         capability "Button"
         capability "Switch Level"
         capability "Energy Meter"
         capability "Power Meter"
 
-		attribute "colorName", "string"
+        attribute "colorName", "string"
         attribute "lastActivity", "String"
         attribute "lastEvent", "String"
         attribute "firmware", "String"
@@ -68,10 +69,10 @@ metadata {
         command "customEffectStop"
         
         fingerprint manufacturer: "031E", prod: "000A", model: "0001", deviceJoinName: "Inovelli Light Strip"
-		fingerprint deviceId: "0x1101", inClusters:"0x5E,0x86,0x33,0x72,0x5A,0x85,0x59,0x73,0x32,0x26,0x70,0x75,0x22,0x8E,0x55,0x98,0x9F,0x6C,0x7A,0x5B,0x87"
-	}
-	preferences {
-		getParameterNumbers().each{ i ->
+        fingerprint deviceId: "0x1101", inClusters:"0x5E,0x86,0x33,0x72,0x5A,0x85,0x59,0x73,0x32,0x26,0x70,0x75,0x22,0x8E,0x55,0x98,0x9F,0x6C,0x7A,0x5B,0x87"
+    }
+    preferences {
+        getParameterNumbers().each{ i ->
             switch(configParams["parameter${i.toString().padLeft(3,"0")}"].type)
             {   
                 case "number":
@@ -162,7 +163,7 @@ metadata {
             title: "Disable Debug Logging: Disable debug logging after this number of minutes (0=Do not disable)", defaultValue: 0
         input name: "disableInfoLogging", type: "number", 
             title: "Disable Info Logging: Disable info logging after this number of minutes (0=Do not disable)", defaultValue: 30
-	}
+    }
 }
 
 @Field static List ledNotificationEndpoints = [21]
@@ -377,7 +378,7 @@ private getCOLOR_TEMP_DIFF() { COLOR_TEMP_MAX - COLOR_TEMP_MIN }
 ]
 
 private getCommandClassVersions() {
-	[0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1, 0x32: 3, 0x5B: 1]
+    [0x20: 1, 0x25: 1, 0x70: 1, 0x98: 1, 0x32: 3, 0x5B: 1]
 }
 
 def childExists(ep) {
@@ -439,7 +440,7 @@ def childSetLevel(String dni, value) {
             cmds << getParameter(14)
         break
     }
-	return commands(cmds)
+    return commands(cmds)
 }
 
 def childOn(String dni) {
@@ -522,7 +523,7 @@ void childRefresh(String dni) {
 
 def componentSetLevel(cd,level,transitionTime = null) {
     if (infoEnable != "false") log.info "${device.label?device.label:device.name}: componentSetLevel($cd, $value)"
-	return childSetLevel(cd.deviceNetworkId,level)
+    return childSetLevel(cd.deviceNetworkId,level)
 }
 
 def componentOn(cd) {
@@ -813,21 +814,21 @@ def updated() {
 def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd) {
     if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     def event
-	if (cmd.scale == 0) {
-    	if (cmd.meterType == 161) {
-		    event = createEvent(name: "voltage", value: cmd.scaledMeterValue, unit: "V")
+    if (cmd.scale == 0) {
+        if (cmd.meterType == 161) {
+            event = createEvent(name: "voltage", value: cmd.scaledMeterValue, unit: "V")
             if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Voltage report received with value of ${cmd.scaledMeterValue} V"
         } else if (cmd.meterType == 1) {
-        	event = createEvent(name: "energy", value: cmd.scaledMeterValue, unit: "kWh")
+            event = createEvent(name: "energy", value: cmd.scaledMeterValue, unit: "kWh")
             if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Energy report received with value of ${cmd.scaledMeterValue} kWh"
         }
-	} else if (cmd.scale == 1) {
-		event = createEvent(name: "amperage", value: cmd.scaledMeterValue, unit: "A")
+    } else if (cmd.scale == 1) {
+        event = createEvent(name: "amperage", value: cmd.scaledMeterValue, unit: "A")
         if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Amperage report received with value of ${cmd.scaledMeterValue} A"
-	} else if (cmd.scale == 2) {
-		event = createEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
+    } else if (cmd.scale == 2) {
+        event = createEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
         if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Power report received with value of ${cmd.scaledMeterValue} W"
-	}
+    }
 
     return event
 }
@@ -858,16 +859,16 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 }
 
 def refresh() {
-	commands([zwave.switchMultilevelV2.switchMultilevelGet()] + queryAllColors())
+    commands([zwave.switchMultilevelV2.switchMultilevelGet()] + queryAllColors())
 }
 
 private void refreshColor() {
-	sendToDevice(queryAllColors())
+    sendToDevice(queryAllColors())
 }
 
 def startLevelChange(direction) {
     def upDownVal = direction == "down" ? true : false
-	if (infoEnable != "false") log.debug "${device.label?device.label:device.name}: startLevelChange(${direction})"
+    if (infoEnable != "false") log.debug "${device.label?device.label:device.name}: startLevelChange(${direction})"
     commands([zwave.switchMultilevelV2.switchMultilevelStartLevelChange(ignoreStartLevel: true, startLevel: device.currentValue("level"), upDown: upDownVal)])
 }
 
@@ -877,7 +878,7 @@ def stopLevelChange() {
 }
 
 void zwaveEvent(physicalgraph.zwave.commands.switchcolorv2.SwitchColorReport cmd) {
-	if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
 
 }
 
@@ -917,73 +918,73 @@ def setLevel(value, duration) {
 }
 
 void setSaturation(percent) {
-	if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setSaturation($percent)"
-	setColor([saturation: percent, hue: device.currentValue("hue"), level: device.currentValue("level")])
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setSaturation($percent)"
+    setColor([saturation: percent, hue: device.currentValue("hue"), level: device.currentValue("level")])
 }
 
 void setHue(value) {
-	if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setHue($value)"
-	setColor([hue: value, saturation: 100, level: device.currentValue("level")])
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setHue($value)"
+    setColor([hue: value, saturation: 100, level: device.currentValue("level")])
 }
 
 def setColor(value) {
-	if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setColor($value)"
-	def cmds = []
-	if (value.hex) {
-		def c = value.hex.findAll(/[0-9a-fA-F]{2}/).collect { Integer.parseInt(it, 16) }
-		cmds << zwave.switchColorV2.switchColorSet(red: c[0], green: c[1], blue: c[2], warmWhite: 0, coldWhite: 0)
-	} else {
-		def rgb = huesatToRGB([value.hue, value.saturation])
-		cmds << zwave.switchColorV2.switchColorSet(red: rgb[0], green: rgb[1], blue: rgb[2], warmWhite:0, coldWhite:0)
-	}
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setColor($value)"
+    def cmds = []
+    if (value.hex) {
+        def c = value.hex.findAll(/[0-9a-fA-F]{2}/).collect { Integer.parseInt(it, 16) }
+        cmds << zwave.switchColorV2.switchColorSet(red: c[0], green: c[1], blue: c[2], warmWhite: 0, coldWhite: 0)
+    } else {
+        def rgb = huesatToRGB([value.hue, value.saturation])
+        cmds << zwave.switchColorV2.switchColorSet(red: rgb[0], green: rgb[1], blue: rgb[2], warmWhite:0, coldWhite:0)
+    }
     if ((device.currentValue("switch") != "on") && (!colorStaging)){
         if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Bulb is off. Turning on"
         cmds << zwave.basicV1.basicSet(value: 0xFF)
     }
     sendEvent(name: "colorMode", value: "RGB", descriptionText: "${device.getDisplayName()} color mode is RGB")
     sendEvent(name: "hue", value: value.hue)
-	sendEvent(name: "saturation", value: value.saturation)
-	commands(cmds)// + "delay 4000" + commands(queryAllColors(), 500)
+    sendEvent(name: "saturation", value: value.saturation)
+    commands(cmds)// + "delay 4000" + commands(queryAllColors(), 500)
 }
 
 def setColorTemperature(temp) {
-	if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setColorTemperature($temp)"
-	def cmds = []
-	if (temp < COLOR_TEMP_MIN) temp = COLOR_TEMP_MIN
-	if (temp > COLOR_TEMP_MAX) temp = COLOR_TEMP_MAX
-	def warmValue = ((COLOR_TEMP_MAX - temp) / COLOR_TEMP_DIFF * 255) as Integer
-	def coldValue = 255 - warmValue
-	cmds << zwave.switchColorV2.switchColorSet(red: 0, green: 0, blue: 0, warmWhite: warmValue, coldWhite: coldValue)
-	if ((device.currentValue("switch") != "on") && (!colorStaging)) {
-		if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Bulb is off. Turning on"
-		cmds << zwave.basicV1.basicSet(value: 0xFF)
-	}
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setColorTemperature($temp)"
+    def cmds = []
+    if (temp < COLOR_TEMP_MIN) temp = COLOR_TEMP_MIN
+    if (temp > COLOR_TEMP_MAX) temp = COLOR_TEMP_MAX
+    def warmValue = ((COLOR_TEMP_MAX - temp) / COLOR_TEMP_DIFF * 255) as Integer
+    def coldValue = 255 - warmValue
+    cmds << zwave.switchColorV2.switchColorSet(red: 0, green: 0, blue: 0, warmWhite: warmValue, coldWhite: coldValue)
+    if ((device.currentValue("switch") != "on") && (!colorStaging)) {
+        if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Bulb is off. Turning on"
+        cmds << zwave.basicV1.basicSet(value: 0xFF)
+    }
     sendEvent(name: "colorMode", value: "CT", descriptionText: "${device.getDisplayName()} color mode is CT")
     sendEvent(name: "colorTemperature", value: temp)
-	commands(cmds)// + "delay 4000" + commands(queryAllColors(), 500)
+    commands(cmds)// + "delay 4000" + commands(queryAllColors(), 500)
 }
 
 def rgbToHSV(red, green, blue) {
-	def hex = colorUtil.rgbToHex(red as int, green as int, blue as int)
-	def hsv = colorUtil.hexToHsv(hex)
-	return [hue: hsv[0], saturation: hsv[1], value: hsv[2]]
+    def hex = colorUtil.rgbToHex(red as int, green as int, blue as int)
+    def hsv = colorUtil.hexToHsv(hex)
+    return [hue: hsv[0], saturation: hsv[1], value: hsv[2]]
 }
 
 def huesatToRGB(hue, sat) {
-	def color = colorUtil.hsvToHex(Math.round(hue) as int, Math.round(sat) as int)
-	return colorUtil.hexToRgb(color)
+    def color = colorUtil.hsvToHex(Math.round(hue) as int, Math.round(sat) as int)
+    return colorUtil.hexToRgb(color)
 }
 
 private queryAllColors() {
-	def colors = WHITE_NAMES + RGB_NAMES
-	[zwave.basicV1.basicGet()] + colors.collect { zwave.switchColorV2.switchColorGet(colorComponent: it) }
+    def colors = WHITE_NAMES + RGB_NAMES
+    [zwave.basicV1.basicGet()] + colors.collect { zwave.switchColorV2.switchColorGet(colorComponent: it) }
 }
 
 void zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
-	physicalgraph.zwave.Command encapsulatedCommand = cmd.encapsulatedCommand(CMD_CLASS_VERS)
-	if (encapsulatedCommand) {
-		zwaveEvent(encapsulatedCommand)
-	}
+    physicalgraph.zwave.Command encapsulatedCommand = cmd.encapsulatedCommand(CMD_CLASS_VERS)
+    if (encapsulatedCommand) {
+        zwaveEvent(encapsulatedCommand)
+    }
 }
 
 def parse(description) {
@@ -1072,11 +1073,11 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 
 def reset() {
     if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Resetting energy statistics"
-	def cmds = []
+    def cmds = []
     cmds << zwave.meterV2.meterReset()
     cmds << zwave.meterV2.meterGet(scale: 0)
     cmds << zwave.meterV2.meterGet(scale: 2)
-	commands(cmds, 1000)
+    commands(cmds, 1000)
 }
 
 private command(physicalgraph.zwave.Command cmd) {
@@ -1094,9 +1095,9 @@ private commands(commands, delay = 250) {
 }
 
 private int gammaCorrect(value) {
-	def temp=value/255
-	def correctedValue=(temp>0.4045) ? Math.pow((temp+0.055)/ 1.055, 2.4) : (temp / 12.92)
-	return Math.round(correctedValue * 255) as Integer
+    def temp=value/255
+    def correctedValue=(temp>0.4045) ? Math.pow((temp+0.055)/ 1.055, 2.4) : (temp / 12.92)
+    return Math.round(correctedValue * 255) as Integer
 }
 
 def setDefaultAssociations() {
@@ -1204,12 +1205,12 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationGroupingsRe
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
     if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     if(cmd.applicationVersion != null && cmd.applicationSubVersion != null) {
-	    def firmware = "${cmd.applicationVersion}.${cmd.applicationSubVersion.toString().padLeft(2,'0')}"
+        def firmware = "${cmd.applicationVersion}.${cmd.applicationSubVersion.toString().padLeft(2,'0')}"
         if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
         state.needfwUpdate = "false"
         createEvent(name: "firmware", value: "${firmware}")
     } else if(cmd.firmware0Version != null && cmd.firmware0SubVersion != null) {
-	    def firmware = "${cmd.firmware0Version}.${cmd.firmware0SubVersion.toString().padLeft(2,'0')}"
+        def firmware = "${cmd.firmware0Version}.${cmd.firmware0SubVersion.toString().padLeft(2,'0')}"
         if (infoEnable != false) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
         state.needfwUpdate = "false"
         createEvent(name: "firmware", value: "${firmware}")
