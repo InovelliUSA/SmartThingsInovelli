@@ -1,7 +1,7 @@
 /**
  *  Inovelli Light Strip LZW45
  *  Author: Eric Maycock (erocm123)
- *  Date: 2021-01-06
+ *  Date: 2021-01-23
  *  Platform: SmartThings
  *
  *  ******************************************************************************************************
@@ -25,6 +25,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2021-01-23: Adding color prestaging option. 
  *
  */
 
@@ -147,7 +149,7 @@ metadata {
             input name: "customEffectString${i}", type: "string", 
                 title: "Custom Effect String ${i-220}", description: "Input a custom effect string (i.e. 121,99,3,66047). This will create a pixel effect child device that can be used to turn the effect on/off"
         }
-        
+        input name: "colorStaging", type: "bool", description: "", title: "Enable color pre-staging", defaultValue: false
         input description: "Use the below options to enable child devices for the specified settings. This will allow you to adjust these settings using " +
             "SmartApps such as Smart Lighting.", title: "Child Devices", displayDuringSetup: false, type: "paragraph", element: "paragraph"
         input "enableDefaultLocalChild", "bool", title: "Create \"Default Level (Local)\" Child Device", description: "", required: false, defaultValue: "false"
