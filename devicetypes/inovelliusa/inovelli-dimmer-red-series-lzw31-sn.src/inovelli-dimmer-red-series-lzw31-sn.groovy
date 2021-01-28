@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-11-13
+ *  Date: 2021-01-28
  *
  *  ******************************************************************************************************
  *
@@ -24,6 +24,9 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  2021-01-28: Adding configuration parameter (50) for firmware 1.52+
+ *              50 allows you to configure the delay when turning switch on/off from wall
+ *
  *  2020-11-13: Adding option to create child devices for LED Color & Intensity when on and Intensity when off.
  *              This will allow you to control those configuration options easily in other apps. This requires
  *              child device handlers to be installed that are listed above.
@@ -40,7 +43,7 @@
  *              to determine physical vs digital dimmer events.
  *
  *  2020-07-17: Added configuration parameter (51 & 51) for firmware 1.47+ 
- *              51 allows you to disable the 700ms delay when turing switch on/off from the wall.
+ *              51 allows you to disable the 700ms delay when turning switch on/off from the wall.
  *              52 is to put the switch into a "smart bulb" mode to optimize the output for smart bulbs.
  *
  *  2020-07-01: Fix for bool settings not showing correctly in SmartThings app.
@@ -949,7 +952,7 @@ def getParameter(number) {
 }
 
 def getParameterNumbers(){
-    return [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,21,22,51,52]
+    return [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,17,18,19,20,21,22,50,51,52]
 }
 
 def getParameterInfo(number, value){
@@ -977,6 +980,7 @@ def getParameterInfo(number, value){
     parameter.parameter20default=10
     parameter.parameter21default=1
     parameter.parameter22default=0
+    parameter.parameter50default=7
     parameter.parameter51default=1
     parameter.parameter52default=0
     
@@ -1002,6 +1006,7 @@ def getParameterInfo(number, value){
     parameter.parameter20type="number"
     parameter.parameter21type="enum"
     parameter.parameter22type="enum"
+    parameter.parameter50type="enum"
     parameter.parameter51type="enum"
     parameter.parameter52type="enum"
     
@@ -1027,6 +1032,7 @@ def getParameterInfo(number, value){
     parameter.parameter20size=1
     parameter.parameter21size=1
     parameter.parameter22size=1
+    parameter.parameter50size=1
     parameter.parameter51size=1
     parameter.parameter52size=1
     
@@ -1052,6 +1058,7 @@ def getParameterInfo(number, value){
     parameter.parameter20options="0..100"
     parameter.parameter21options=["0":"Non Neutral", "1":"Neutral"]
     parameter.parameter22options=["0":"Load Only", "1":"3-way Toggle", "2":"3-way Momentary"]
+    parameter.parameter50options=["1":"100ms", "2":"200ms", "3":"300ms", "4":"400ms", "5":"500ms", "6":"600ms", "7":"700ms", "8":"800ms", "9":"900ms"]
     parameter.parameter51options=["1":"No (Default)", "0":"Yes"]
     parameter.parameter52options=["0":"No (Default)", "1":"Yes"]
     
@@ -1077,6 +1084,7 @@ def getParameterInfo(number, value){
     parameter.parameter20name="Energy Reports"
     parameter.parameter21name="AC Power Type"
     parameter.parameter22name="Switch Type"
+    parameter.parameter50name="Configure Physical On/Off Delay"
     parameter.parameter51name="Disable Physical On/Off Delay"
     parameter.parameter52name="Smart Bulb Mode"
     
@@ -1102,6 +1110,7 @@ def getParameterInfo(number, value){
     parameter.parameter20description="The energy level change that will result in a new energy report being sent. The value is a percentage of the previous report."
     parameter.parameter21description="Configure the switch to use a neutral wire."
     parameter.parameter22description="Configure the type of 3-way switch connected to the dimmer."
+    parameter.parameter50description="Configure delay that occurs after pressing physical button"
     parameter.parameter51description="The 700ms delay that occurs after pressing the physical button to turn the switch on/off is removed. Consequently this also removes the following scenes: 2x, 3x, 4x, 5x tap. 1x tap and config button scenes still work. (firmware 1.47+)"
     parameter.parameter52description="Optimize power output to be more compatible with smart bulbs. This prevents the dimmer from being able to dim & makes it act like an ON / OFF switch. (firmware 1.47+)"
     
