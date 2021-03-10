@@ -370,7 +370,7 @@ def setColor(value) {
     sendEvent(name:"hue", value: value.hue)
     sendEvent(name:"saturation", value: value.saturation)
     if (state.firmware == null || state.firmware == "") {
-        result << zwave.versionV2.versionGet()
+        result << zwave.versionV1.versionGet()
 	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
 	} else if (state.firmware == "2.29") {
 	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
@@ -394,7 +394,7 @@ def setColorTemperature(temp) {
 	}
     sendEvent(name:"colorTemperature", value: temp)
     if (state.firmware == null || state.firmware == "") {
-        result << zwave.versionV2.versionGet()
+        result << zwave.versionV1.versionGet()
 	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
 	} else if (state.firmware == "2.29") {
 	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
