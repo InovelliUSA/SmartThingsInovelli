@@ -1,5 +1,5 @@
 /**
- *  Copyright 2019 Inovelli / Eric Maycock
+ *  Copyright 2021 Inovelli / Eric Maycock
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -13,7 +13,9 @@
  *  Inovelli Bulb Multi-Color LZW42
  *
  *  Author: Eric Maycock
- *  Date: 2019-9-9
+ *  Date: 2021-03-09
+ *  updated by ericm
+ *      Optimized for new SmartThings App
  *  updated by bcopeland 1/7/2020 
  *		Added color pre-staging option
  *		Added power restored memory configuration
@@ -115,8 +117,9 @@ def updated() {
     if (state.colorReceived==null || state.powerStateMem==null) initializeVars()
 	if (state.powerStateMem?.toInteger() != bulbMemory?.toInteger()) {
         cmds = initializeConfig()
-	    response(commands(cmds))
     }
+    cmds.add(zwave.versionV1.versionGet())
+	response(commands(cmds))
 }
 
 def installed() {
@@ -185,6 +188,7 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
     // st doesn't support v2 this will need work
 	def fw = cmd.applicationVersion + (cmd.applicationSubVersion / 100)
 	state.firmware = fw
+    sendEvent(name: "firmware", value:fw)
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv2.SwitchMultilevelReport cmd) {
@@ -359,27 +363,44 @@ def setColor(value) {
 		def rgb = huesatToRGB(value.hue, value.saturation)
 		result << zwave.switchColorV2.switchColorSet(red: rgb[0], green: rgb[1], blue: rgb[2], warmWhite:0, coldWhite:0)
 	}
-    if ((device.currentValue("switch") != "on") && (!colorStaging)){
+    if ((device.currentValue("switch") != "on") && (colorStaging != true)){
         log.debug "Bulb is off. Turning on"
         result << zwave.basicV1.basicSet(value: 0xFF)
     }
-	commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
+    sendEvent(name:"hue", value: value.hue)
+    sendEvent(name:"saturation", value: value.saturation)
+    if (state.firmware == null || state.firmware == "") {
+        result << zwave.versionV2.versionGet()
+	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
+	} else if (state.firmware == "2.29") {
+	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
+    } else {
+        commands(result) + "delay 2000" + commands(queryAllColors(), 500)
+    }
 }
 
 def setColorTemperature(temp) {
 	WHITE_NAMES.collect { state.colorReceived[it] = null }
 	if (logEnable) log.debug "setColorTemperature($temp)"
-	def cmds = []
+	def result = []
 	if (temp < COLOR_TEMP_MIN) temp = COLOR_TEMP_MIN
 	if (temp > COLOR_TEMP_MAX) temp = COLOR_TEMP_MAX
 	def warmValue = ((COLOR_TEMP_MAX - temp) / COLOR_TEMP_DIFF * 255) as Integer
 	def coldValue = 255 - warmValue
-	cmds << zwave.switchColorV2.switchColorSet(warmWhite: warmValue, coldWhite: coldValue)
-	if ((device.currentValue("switch") != "on") && (!colorStaging)) {
+	result << zwave.switchColorV2.switchColorSet(warmWhite: warmValue, coldWhite: coldValue)
+	if ((device.currentValue("switch") != "on") && (colorStaging != true)){
 		if (logEnable) log.debug "Bulb is off. Turning on"
-		cmds << zwave.basicV1.basicSet(value: 0xFF)
+		result << zwave.basicV1.basicSet(value: 0xFF)
 	}
-	commands(cmds)
+    sendEvent(name:"colorTemperature", value: temp)
+    if (state.firmware == null || state.firmware == "") {
+        result << zwave.versionV2.versionGet()
+	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
+	} else if (state.firmware == "2.29") {
+	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
+    } else {
+        commands(result) + "delay 2000" + commands(queryAllColors(), 500)
+    }
 }
 
 private queryAllColors() {
