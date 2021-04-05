@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2021-01-28
+ *  Date: 2021-04-05
  *
  *  ******************************************************************************************************
  *
@@ -13,7 +13,7 @@
  *
  *  ******************************************************************************************************
  *
- *  Copyright 2020 Eric Maycock / Inovelli
+ *  Copyright 2021 Eric Maycock / Inovelli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -23,6 +23,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2021-04-05: Rearrange capabilities for Home Bridge problem. 
  *
  *  2021-01-28: Adding configuration parameter (50) for firmware 1.52+
  *              50 allows you to configure the delay when turning switch on/off from wall
@@ -89,14 +91,13 @@ import groovy.json.JsonOutput
 metadata {
     definition (name: "Inovelli Dimmer Red Series LZW31-SN", namespace: "InovelliUSA", author: "Eric Maycock", vid: "generic-dimmer-power-energy") {
         capability "Switch"
+	capability "Switch Level"
         capability "Refresh"
-        capability "Polling"
         capability "Actuator"
         capability "Sensor"
         //capability "Health Check"
         capability "Button"
         capability "Holdable Button"
-        capability "Switch Level"
         capability "Configuration"
         capability "Energy Meter"
         capability "Power Meter"
