@@ -1,7 +1,7 @@
 /**
  *  Inovelli Fan + Light LZW36
  *  Author: Eric Maycock (erocm123)
- *  Date: 2021-04-05
+ *  Date: 2020-08-14
  *
  *  ******************************************************************************************************
  *
@@ -14,7 +14,7 @@
  *
  *  ******************************************************************************************************
  *
- *  Copyright 2021 Inovelli / Eric Maycock
+ *  Copyright 2020 Inovelli / Eric Maycock
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -24,8 +24,6 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
- *
- *  2021-04-05: Fix for meter reports not being received. 
  *
  *  2020-08-14: Added configuration parameter 51 for firmware 1.36+ 
  *
@@ -1501,31 +1499,26 @@ def buttonEvent(button, value, type = "digital") {
     [name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true, type: type]
 }
 
-def zwaveEvent(hubitat.zwave.commands.meterv3.MeterReport cmd, ep=null) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd, ep=null) {
+    if (debugEnable != "false") log.debug "${device.displayName}: ${cmd} ${ep?ep:0}"
     def event
-    def cmds = []
-    if (cmd.meterValue != []){
-	    if (cmd.scale == 0) {
-    	    if (cmd.meterType == 161) {
-		        sendEvent(name: "voltage", value: cmd.scaledMeterValue, unit: "V")
-                if (infoEnable) log.info "${device.label?device.label:device.name}: Voltage report received with value of ${cmd.scaledMeterValue} V"
-            } else if (cmd.meterType == 1) {
-        	    sendEvent(name: "energy", value: cmd.scaledMeterValue, unit: "kWh")
-                if (infoEnable) log.info "${device.label?device.label:device.name}: Energy report received with value of ${cmd.scaledMeterValue} kWh"
-            }
-	    } else if (cmd.scale == 1) {
-		    sendEvent(name: "amperage", value: cmd.scaledMeterValue, unit: "A")
-            if (infoEnable) log.info "${device.label?device.label:device.name}: Amperage report received with value of ${cmd.scaledMeterValue} A"
-	    } else if (cmd.scale == 2) {
-		    sendEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
-            if (infoEnable) log.info "${device.label?device.label:device.name}: Power report received with value of ${cmd.scaledMeterValue} W"
-	    }
-    } else {
-        if (cmd.scale == 0) cmds << zwave.meterV2.meterGet(scale: 0)
-        if (cmd.scale == 2) cmds << zwave.meterV2.meterGet(scale: 2)
-    }
-    if (cmds) return response(commands(cmds)) else return null
+	if (cmd.scale == 0) {
+    	if (cmd.meterType == 161) {
+		    event = createEvent(name: "voltage", value: cmd.scaledMeterValue, unit: "V")
+            if (infoEnable != "false") log.info "${device.displayName}: Voltage report received with value of ${cmd.scaledMeterValue} V"
+        } else if (cmd.meterType == 1) {
+        	event = createEvent(name: "energy", value: cmd.scaledMeterValue, unit: "kWh")
+            if (infoEnable != "false") log.info "${device.displayName}: Energy report received with value of ${cmd.scaledMeterValue} kWh"
+        }
+	} else if (cmd.scale == 1) {
+		event = createEvent(name: "amperage", value: cmd.scaledMeterValue, unit: "A")
+        if (infoEnable != "false") log.info "${device.displayName}: Amperage report received with value of ${cmd.scaledMeterValue} A"
+	} else if (cmd.scale == 2) {
+		event = createEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
+        if (infoEnable != "false") log.info "${device.displayName}: Power report received with value of ${cmd.scaledMeterValue} W"
+	}
+
+    return event
 }
 
 def getParameterNumbers(){
