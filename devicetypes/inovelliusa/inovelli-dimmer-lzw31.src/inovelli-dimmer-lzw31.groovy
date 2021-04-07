@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer LZW31
  *  Author: Eric Maycock (erocm123)
- *  Date: 2020-11-13
+ *  Date: 2021-04-06
  *
  *  ******************************************************************************************************
  *
@@ -13,7 +13,7 @@
  *
  *  ******************************************************************************************************
  *
- *  Copyright 2020 Eric Maycock / Inovelli
+ *  Copyright 2021 Eric Maycock / Inovelli
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -81,7 +81,6 @@ metadata {
         //capability "Health Check"
         capability "Switch Level"
         capability "Configuration"
-        capability "ColorControl"
         
         attribute "lastActivity", "String"
         attribute "lastEvent", "String"
