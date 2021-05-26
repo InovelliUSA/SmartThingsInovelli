@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer LZW31
  *  Author: Eric Maycock (erocm123)
- *  Date: 2021-04-06
+ *  Date: 2021-05-26
  *
  *  ******************************************************************************************************
  *
@@ -23,6 +23,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2021-05-26: Adding button events for config button (button 7). Works with beta firmware 1.52 only. 
  *
  *  2020-11-13: Adding option to create child devices for LED Color & Intensity when on and Intensity when off.
  *              This will allow you to control those configuration options easily in other apps. This requires
@@ -715,6 +717,38 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
             }
         break
     }
+}
+
+void zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
+    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    switch (cmd.keyAttributes) {
+       case 0:
+       if (cmd.sceneNumber == 3) buttonEvent(7, "pushed", "physical")
+       else buttonEvent(cmd.keyAttributes + 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical")
+       break
+       case 1:
+       if (cmd.sceneNumber == 3) buttonEvent(7, "released", "physical")
+       else buttonEvent(6, (cmd.sceneNumber == 2? "pushed" : "held"), "physical")
+       break
+       case 2:
+       if (cmd.sceneNumber == 3) buttonEvent(7, "held", "physical")
+       else buttonEvent(8, (cmd.sceneNumber == 2? "pushed" : "held"), "physical")
+       break
+       default:
+       if (cmd.sceneNumber == 3) buttonEvent(7, "held", "physical")
+       else buttonEvent(cmd.keyAttributes - 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical")
+       break
+    }
+}
+
+void buttonEvent(button, value, type = "digital") {
+    if(button != 6)
+        sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Tap '.padRight(button+5, '▼'):' Tap '.padRight(button+5, '▲')}", displayed:false)
+    else
+        sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Hold ▼':' Hold ▲'}", displayed:false)
+    if (infoEnable) log.info "${device.label?device.label:device.name}: Button ${button} was ${value}"
+    
+    sendEvent(name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true, type: type)
 }
 
 def cmd2Integer(array) {
