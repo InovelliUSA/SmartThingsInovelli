@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer LZW31
  *  Author: Eric Maycock (erocm123)
- *  Date: 2021-05-26
+ *  Date: 2021-06-03
  *
  *  ******************************************************************************************************
  *
@@ -23,6 +23,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2021-06-03: Updating button event parsing for aux switch (firmware 1.56+). 
  *
  *  2021-05-26: Adding button events for config button (button 7). Works with beta firmware 1.52 only. 
  *
@@ -719,7 +721,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
     }
 }
 
-void zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
+def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
     if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
     switch (cmd.keyAttributes) {
        case 0:
@@ -741,14 +743,25 @@ void zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotifica
     }
 }
 
-void buttonEvent(button, value, type = "digital") {
-    if(button != 6)
-        sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Tap '.padRight(button+5, '▼'):' Tap '.padRight(button+5, '▲')}", displayed:false)
-    else
-        sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Hold ▼':' Hold ▲'}", displayed:false)
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Button ${button} was ${value}"
+def buttonEvent(button, value, type = "digital") {
+    switch (button) {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+            sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Tap '.padRight(button+5, '▼'):' Tap '.padRight(button+5, '▲')}", displayed:false)
+        break
+        case 6:
+            sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Released ▼':' Released ▲'}", displayed:false)
+        break
+        case 8:
+            sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Hold ▼':' Hold ▲'}", displayed:false)
+        break
+    }
     
-    sendEvent(name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true, type: type)
+    if (infoEnable) log.info "${device.label?device.label:device.name}: Button ${button} was ${value}"
+    [name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true, type: type]
 }
 
 def cmd2Integer(array) {
