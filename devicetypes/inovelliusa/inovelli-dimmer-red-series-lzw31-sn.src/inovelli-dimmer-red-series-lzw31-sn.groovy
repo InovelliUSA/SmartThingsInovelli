@@ -24,6 +24,8 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
+ *  2021-06-03: Updating button event parsing for aux switch (firmware 1.56+). 
+ *
  *  2021-04-26: Adding options for parameter 52 (disabled, on/off only mode, smartbulb mode). 
  *
  *  2021-04-05: Rearrange capabilities for Home Bridge problem. 
@@ -1328,26 +1330,41 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
     if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
     switch (cmd.keyAttributes) {
        case 0:
-       if (cmd.sceneNumber == 3) createEvent(buttonEvent(7, "pushed", "physical"))
-       else createEvent(buttonEvent(cmd.keyAttributes + 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
+       if (cmd.sceneNumber == 3) buttonEvent(7, "pushed", "physical")
+       else buttonEvent(cmd.keyAttributes + 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical")
        break
        case 1:
-       createEvent(buttonEvent(6, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
+       if (cmd.sceneNumber == 3) buttonEvent(7, "released", "physical")
+       else buttonEvent(6, (cmd.sceneNumber == 2? "pushed" : "held"), "physical")
        break
        case 2:
-       createEvent(buttonEvent(8, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
+       if (cmd.sceneNumber == 3) buttonEvent(7, "held", "physical")
+       else buttonEvent(8, (cmd.sceneNumber == 2? "pushed" : "held"), "physical")
        break
        default:
-       createEvent(buttonEvent(cmd.keyAttributes - 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical"))
+       if (cmd.sceneNumber == 3) buttonEvent(7, "held", "physical")
+       else buttonEvent(cmd.keyAttributes - 1, (cmd.sceneNumber == 2? "pushed" : "held"), "physical")
        break
     }
 }
 
 def buttonEvent(button, value, type = "digital") {
-    if(button != 6)
-        sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Tap '.padRight(button+5, '▼'):' Tap '.padRight(button+5, '▲')}", displayed:false)
-    else
-        sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Hold ▼':' Hold ▲'}", displayed:false)
+    switch (button) {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+            sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Tap '.padRight(button+5, '▼'):' Tap '.padRight(button+5, '▲')}", displayed:false)
+        break
+        case 6:
+            sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Released ▼':' Released ▲'}", displayed:false)
+        break
+        case 8:
+            sendEvent(name:"lastEvent", value: "${value != 'pushed'?' Hold ▼':' Hold ▲'}", displayed:false)
+        break
+    }
+    
     if (infoEnable) log.info "${device.label?device.label:device.name}: Button ${button} was ${value}"
     [name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true, type: type]
 }
