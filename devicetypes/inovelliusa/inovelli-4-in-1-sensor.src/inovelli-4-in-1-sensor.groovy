@@ -3,7 +3,7 @@
  *  Inovelli 4-in-1 Sensor 
  *   
  *    github: InovelliUSA
- *    Date: 2021-06-04
+ *    Date: 2021-07-07
  *    Copyright Inovelli / Eric Maycock
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -14,6 +14,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *  
+ *  2021-07-07: Fix for negative values with luminance reports. 
  *  
  *  2021-06-04: Adding preference for "wake interval" to be used with threshold reporting. 
  *  
@@ -380,8 +382,8 @@ def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelR
             break;
         case 3:
             map.name = "illuminance"
-            state.realLuminance = cmd.scaledSensorValue.toInteger()
-            map.value = getAdjustedLuminance(cmd.scaledSensorValue.toInteger())
+            state.realLuminance = cmd.scaledSensorValue.toInteger()<0?(((cmd.scaledSensorValue.toInteger()+32768) % 65536) + 32768) : cmd.scaledSensorValue.toInteger()
+            map.value = getAdjustedLuminance(cmd.scaledSensorValue.toInteger()<0?(((cmd.scaledSensorValue.toInteger()+32768) % 65536) + 32768) : cmd.scaledSensorValue.toInteger())
             map.unit = "lux"
             if (infoEnable != false) log.info "${device.label?device.label:device.name}: Illuminance report received: ${map.value}"
             break;
