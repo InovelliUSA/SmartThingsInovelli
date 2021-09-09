@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer LZW31
  *  Author: Eric Maycock (erocm123)
- *  Date: 2021-06-03
+ *  Date: 2021-09-09
  *
  *  ******************************************************************************************************
  *
@@ -23,6 +23,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2021-09-09: Adding button capability for the config button scene feature that is in firmware 1.52. 
  *
  *  2021-06-03: Updating button event parsing for aux switch (firmware 1.56+). 
  *
@@ -85,6 +87,8 @@ metadata {
         //capability "Health Check"
         capability "Switch Level"
         capability "Configuration"
+	capability "Button"
+        capability "Holdable Button"
         
         attribute "lastActivity", "String"
         attribute "lastEvent", "String"
