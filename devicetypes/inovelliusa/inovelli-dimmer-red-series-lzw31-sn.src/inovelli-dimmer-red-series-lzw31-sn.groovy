@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2021-06-03
+ *  Date: 2021-11-03
  *
  *  ******************************************************************************************************
  *
@@ -23,6 +23,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2021-11-03: Work around for association reports not being parsed. 
  *
  *  2021-06-03: Updating button event parsing for aux switch (firmware 1.56+). 
  *
@@ -587,7 +589,7 @@ def logsOff(){
 }
 
 private sendAlert(data) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Error while creating child device"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Error while creating child device"
     sendEvent(
         descriptionText: data.message,
         eventType: "ALERT",
@@ -614,7 +616,7 @@ private toggleTiles(number, value) {
 }
 
 def startNotification(value, ep = null){
-    if (infoEnable) log.info "${device.label?device.label:device.name}: startNotification($value)"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: startNotification($value)"
     def parameterNumbers = [16]
     def cmds = []
     cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Cmd(value.toInteger(),4), parameterNumber: parameterNumbers[(ep == null)? 0:ep?.toInteger()-1], size: 4)
@@ -623,7 +625,7 @@ def startNotification(value, ep = null){
 }
 
 def stopNotification(ep = null){
-    if (infoEnable) log.info "${device.label?device.label:device.name}: stopNotification()"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: stopNotification()"
     def parameterNumbers = [16]
     def cmds = []
     cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Cmd(0,4), parameterNumber: parameterNumbers[(ep == null)? 0:ep?.toInteger()-1], size: 4)
@@ -632,10 +634,10 @@ def stopNotification(ep = null){
 }
 
 def setColor(value) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: setColor($value)"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setColor($value)"
 	if (value.hue == null || value.saturation == null) return
 	def ledColor = Math.round(huePercentToZwaveValue(value.hue))
-	if (infoEnable) log.info "${device.label?device.label:device.name}: Setting LED color value to $ledColor & LED intensity to $ledLevel"
+	if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Setting LED color value to $ledColor & LED intensity to $ledLevel"
     def cmds = []
     if (value.level != null) {
         def ledLevel = Math.round(value.level/10)
@@ -668,7 +670,7 @@ private zwaveValueToHuePercent(value){
 }
 
 def childSetLevel(String dni, value) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: childSetLevel($dni, $value)"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: childSetLevel($dni, $value)"
     state.lastRan = now()
     def valueaux = value as Integer
     def level = Math.max(Math.min(valueaux, 99), 0)    
@@ -703,7 +705,7 @@ def childSetLevel(String dni, value) {
 }
 
 def childOn(String dni) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: childOn($dni)"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: childOn($dni)"
     state.lastRan = now()
     def cmds = []
     if(channelNumber(dni).toInteger() <= 5) {
@@ -716,7 +718,7 @@ def childOn(String dni) {
 }
 
 def childOff(String dni) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: childOff($dni)"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: childOff($dni)"
     state.lastRan = now()
     def cmds = []
     if(channelNumber(dni).toInteger() <= 5) {
@@ -729,7 +731,7 @@ def childOff(String dni) {
 }
 
 void childRefresh(String dni) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: childRefresh($dni)"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: childRefresh($dni)"
 }
 
 def childExists(ep) {
@@ -746,7 +748,7 @@ void componentSetColor(dni, value) {
 	if (value.hue == null || value.saturation == null) return
 	def ledColor = Math.round(huePercentToZwaveValue(value.hue))
     state.lastRan = now()
-	if (infoEnable) log.info "${device.label?device.label:device.name}: Setting LED color value to $ledColor & LED intensity to $ledLevel"
+	if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Setting LED color value to $ledColor & LED intensity to $ledLevel"
     def cmds = []
     if (value.level != null) {
         def ledLevel = Math.round(value.level/10)
@@ -760,7 +762,7 @@ void componentSetColor(dni, value) {
 
 void componentSetColorTemperature(dni, value) {
     if (infoEnable != "false") log.info "${device.label?device.label:device.name}: dni, componentSetColorTemperature($value)"
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Setting LED color value to 255"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Setting LED color value to 255"
     state.lastRan = now()
     state.colorTemperature = value
     def cmds = []
@@ -770,19 +772,19 @@ void componentSetColorTemperature(dni, value) {
 }
 
 def installed() {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: installed()"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: installed()"
     refresh()
 }
 
 def configure() {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: configure()"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: configure()"
     def cmds = initialize()
     commands(cmds)
 }
 
 def updated() {
     if (!state.lastRan || now() >= state.lastRan + 2000) {
-        if (infoEnable) log.info "${device.label?device.label:device.name}: updated()"
+        if (infoEnable != "false") log.info "${device.label?device.label:device.name}: updated()"
         if (debugEnable || infoEnable) runIn(1800,logsOff)
         state.lastRan = now()
         def cmds = initialize()
@@ -791,7 +793,7 @@ def updated() {
         else 
             return null
     } else {
-        if (infoEnable) log.info "${device.label?device.label:device.name}: updated() ran within the last 2 seconds. Skipping execution."
+        if (infoEnable != "false") log.info "${device.label?device.label:device.name}: updated() ran within the last 2 seconds. Skipping execution."
     }
 }
 
@@ -814,7 +816,7 @@ private deleteChild(id){
         try {
             if(childDevice) deleteChildDevice(childDevice.deviceNetworkId)
         } catch (e) {
-            if (infoEnable) log.info "SmartThings may have issues trying to delete the child device when it is in use. Need to manually delete them."
+            if (infoEnable != "false") log.info "SmartThings may have issues trying to delete the child device when it is in use. Need to manually delete them."
             runIn(3, "sendAlert", [data: [message: "Failed to delete child device. Make sure the device is not in use by any SmartApp."]])
         }
     }
@@ -899,23 +901,23 @@ def initialize() {
     
     getParameterNumbers().each{ i ->
       if ((state."parameter${i}value" != ((settings."parameter${i}"!=null||calculateParameter(i)!=null)? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()))){
-          //if (infoEnable) log.info "Parameter $i is not set correctly. Setting it to ${settings."parameter${i}"!=null? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()}."
+          //if (infoEnable != "false") log.info "Parameter $i is not set correctly. Setting it to ${settings."parameter${i}"!=null? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger()}."
           cmds << setParameter(i, (settings."parameter${i}"!=null||calculateParameter(i)!=null)? calculateParameter(i).toInteger() : getParameterInfo(i, "default").toInteger(), getParameterInfo(i, "size").toInteger())
           cmds << getParameter(i)
       }
       else {
-          //if (infoEnable) log.info "${device.label?device.label:device.name}: Parameter $i already set"
+          //if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Parameter $i already set"
       }
     }
     
     cmds << zwave.versionV1.versionGet()
     
     if (state.localProtectionState?.toInteger() != settings.disableLocal?.toInteger() || state.rfProtectionState?.toInteger() != settings.disableRemote?.toInteger()) {
-        if (infoEnable) log.info "${device.label?device.label:device.name}: Protection command class settings need to be updated"
+        if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Protection command class settings need to be updated"
         cmds << zwave.protectionV2.protectionSet(localProtectionState : disableLocal!=null? disableLocal.toInteger() : 0, rfProtectionState: disableRemote!=null? disableRemote.toInteger() : 0)
         cmds << zwave.protectionV2.protectionGet()
     } else {
-        if (infoEnable) log.info "${device.label?device.label:device.name}: No Protection command class settings to update"
+        if (infoEnable != "false") log.info "${device.label?device.label:device.name}: No Protection command class settings to update"
     }
 
     if (cmds != []) return cmds else return []
@@ -946,12 +948,12 @@ def calculateParameter(number) {
 }
 
 def setParameter(number, value, size) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Setting parameter $number with a size of $size bytes to $value"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Setting parameter $number with a size of $size bytes to $value"
     return zwave.configurationV1.configurationSet(configurationValue: integer2Cmd(value.toInteger(),size), parameterNumber: number, size: size)
 }
 
 def getParameter(number) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Retreiving value of parameter $number"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Retreiving value of parameter $number"
     return zwave.configurationV1.configurationGet(parameterNumber: number)
 }
 
@@ -1122,34 +1124,34 @@ def getParameterInfo(number, value){
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     def event
 	if (cmd.scale == 0) {
     	if (cmd.meterType == 161) {
 		    event = createEvent(name: "voltage", value: cmd.scaledMeterValue, unit: "V")
-            if (infoEnable) log.info "${device.label?device.label:device.name}: Voltage report received with value of ${cmd.scaledMeterValue} V"
+            if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Voltage report received with value of ${cmd.scaledMeterValue} V"
         } else if (cmd.meterType == 1) {
         	event = createEvent(name: "energy", value: cmd.scaledMeterValue, unit: "kWh")
-            if (infoEnable) log.info "${device.label?device.label:device.name}: Energy report received with value of ${cmd.scaledMeterValue} kWh"
+            if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Energy report received with value of ${cmd.scaledMeterValue} kWh"
         }
 	} else if (cmd.scale == 1) {
 		event = createEvent(name: "amperage", value: cmd.scaledMeterValue, unit: "A")
-        if (infoEnable) log.info "${device.label?device.label:device.name}: Amperage report received with value of ${cmd.scaledMeterValue} A"
+        if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Amperage report received with value of ${cmd.scaledMeterValue} A"
 	} else if (cmd.scale == 2) {
 		event = createEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
-        if (infoEnable) log.info "${device.label?device.label:device.name}: Power report received with value of ${cmd.scaledMeterValue} W"
+        if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Power report received with value of ${cmd.scaledMeterValue} W"
 	}
 
     return event
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
-    if (infoEnable) log.info "${device.label?device.label:device.name}: parameter '${cmd.parameterNumber}' with a byte size of '${cmd.size}' is set to '${cmd2Integer(cmd.configurationValue)}'"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: parameter '${cmd.parameterNumber}' with a byte size of '${cmd.size}' is set to '${cmd2Integer(cmd.configurationValue)}'"
     if (!state.lastRan || now() <= state.lastRan + 60000) {
         state."parameter${cmd.parameterNumber}value" = cmd2Integer(cmd.configurationValue)
     } else {
-        if (infoEnable) log.debug "${device.label?device.label:device.name}: Configuration report received more than 60 seconds after running updated(). Possible configuration made at switch"
+        if (infoEnable != "false") log.debug "${device.label?device.label:device.name}: Configuration report received more than 60 seconds after running updated(). Possible configuration made at switch"
     }
     def integerValue = cmd2Integer(cmd.configurationValue)
     switch (cmd.parameterNumber) {
@@ -1249,7 +1251,7 @@ def integer2Cmd(value, size) {
 	break
 	}
     } catch (e) {
-        if (debugEnable) log.debug "Error: integer2Cmd $e Value: $value"
+        if (debugEnable != "false") log.debug "Error: integer2Cmd $e Value: $value"
     }
 }
 
@@ -1276,7 +1278,7 @@ def parse(description) {
             result = zwaveEvent(cmd)
             //log.debug("'$cmd' parsed to $result")
         } else {
-            if (debugEnable) log.debug "Couldn't zwave.parse '$description'" 
+            if (debugEnable != "false") log.debug "Couldn't zwave.parse '$description'" 
         }
     }
     def now
@@ -1294,26 +1296,26 @@ def parse(description) {
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Basic report received with value of ${cmd.value ? "on" : "off"} ($cmd.value)"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Basic report received with value of ${cmd.value ? "on" : "off"} ($cmd.value)"
     dimmerEvents(cmd, (!state.lastRan || now() <= state.lastRan + 2000)?"digital":"physical")
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Basic set received with value of ${cmd.value ? "on" : "off"}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Basic set received with value of ${cmd.value ? "on" : "off"}"
     dimmerEvents(cmd)
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Switch Binary report received with value of ${cmd.value ? "on" : "off"}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Switch Binary report received with value of ${cmd.value ? "on" : "off"}"
     dimmerEvents(cmd)
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Switch Multilevel report received with value of ${cmd.value ? "on" : "off"} ($cmd.value)"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Switch Multilevel report received with value of ${cmd.value ? "on" : "off"} ($cmd.value)"
     dimmerEvents(cmd, (!state.lastRan || now() <= state.lastRan + 2000)?"digital":"physical")
 }
 
@@ -1327,7 +1329,7 @@ private dimmerEvents(physicalgraph.zwave.Command cmd, type="physical") {
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     switch (cmd.keyAttributes) {
        case 0:
        if (cmd.sceneNumber == 3) buttonEvent(7, "pushed", "physical")
@@ -1365,17 +1367,17 @@ def buttonEvent(button, value, type = "digital") {
         break
     }
     
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Button ${button} was ${value}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Button ${button} was ${value}"
     [name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true, type: type]
 }
 
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: Unhandled: $cmd"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: Unhandled: $cmd"
     null
 }
 
 def reset() {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Resetting energy statistics"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Resetting energy statistics"
 	def cmds = []
     cmds << zwave.meterV2.meterReset()
     cmds << zwave.meterV2.meterGet(scale: 0)
@@ -1384,7 +1386,7 @@ def reset() {
 }
 
 def on() {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: on()"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: on()"
     state.lastRan = now()
     commands([
         zwave.basicV1.basicSet(value: 0xFF)
@@ -1392,7 +1394,7 @@ def on() {
 }
 
 def off() {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: off()"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: off()"
     state.lastRan = now()
     commands([
         zwave.basicV1.basicSet(value: 0x00)
@@ -1400,7 +1402,7 @@ def off() {
 }
 
 def setLevel(value) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: setLevel($value)"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setLevel($value)"
     state.lastRan = now()
     commands([
         zwave.switchMultilevelV2.switchMultilevelSet(value: value < 100 ? value : 99)
@@ -1408,7 +1410,7 @@ def setLevel(value) {
 }
 
 def setLevel(value, duration) {
-    if (infoEnable) log.info "${device.label?device.label:device.name}: setLevel($value, $duration)"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: setLevel($value, $duration)"
     state.lastRan = now()
     def dimmingDuration = duration < 128 ? duration : 128 + Math.round(duration / 60)
     commands([
@@ -1417,17 +1419,17 @@ def setLevel(value, duration) {
 }
 
 def ping() {
-    if (debugEnable) log.debug "ping()"
+    if (debugEnable != "false") log.debug "ping()"
     refresh()
 }
 
 def poll() {
-    if (debugEnable) log.debug "poll()"
+    if (debugEnable != "false") log.debug "poll()"
     refresh()
 }
 
 def refresh() {
-    if (debugEnable) log.debug "refresh()"
+    if (debugEnable != "false") log.debug "refresh()"
     def cmds = []
     cmds << zwave.switchMultilevelV1.switchMultilevelGet()
     cmds << zwave.meterV3.meterGet(scale: 0)
@@ -1507,61 +1509,76 @@ def setDefaultAssociations() {
 }
 
 def setAssociationGroup(group, nodes, action, endpoint = null){
-    if (!state."desiredAssociation${group}") {
+    if (state."desiredAssociation${group}" == null) {
         state."desiredAssociation${group}" = nodes
     } else {
         switch (action) {
             case 0:
                 state."desiredAssociation${group}" = state."desiredAssociation${group}" - nodes
+                    if (state."deleteAssociation${group}" == null) {
+                        state."deleteAssociation${group}" = nodes
+                    } else {
+                        state."deleteAssociation${group}" = state."deleteAssociation${group}" + nodes
+                    }
             break
             case 1:
                 state."desiredAssociation${group}" = state."desiredAssociation${group}" + nodes
+                state."deleteAssociation${group}" = state."deleteAssociation${group}" - nodes
             break
         }
     }
 }
 
 def processAssociations(){
+    
    def cmds = []
    setDefaultAssociations()
    def associationGroups = 5
    if (state.associationGroups) {
        associationGroups = state.associationGroups
    } else {
-       if (infoEnable) log.info "${device.label?device.label:device.name}: Getting supported association groups from device"
+       if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Getting supported association groups from device"
        cmds <<  zwave.associationV2.associationGroupingsGet()
    }
    for (int i = 1; i <= associationGroups; i++){
-      if(state."actualAssociation${i}" != null){
+   state."desiredAssociation${i}".each {
+       cmds << zwave.associationV2.associationSet(groupingIdentifier:i, nodeId:Integer.parseInt(it,16))
+       cmds << zwave.associationV2.associationGet(groupingIdentifier:i)
+   }
+   state."deleteAssociation${i}".each {
+       cmds << zwave.associationV2.associationRemove(groupingIdentifier:i, nodeId:Integer.parseInt(it,16))
+       cmds << zwave.associationV2.associationGet(groupingIdentifier:i)
+   }
+      /*if(state."actualAssociation${i}" != null){
          if(state."desiredAssociation${i}" != null || state."defaultG${i}") {
             def refreshGroup = false
             ((state."desiredAssociation${i}"? state."desiredAssociation${i}" : [] + state."defaultG${i}") - state."actualAssociation${i}").each {
                 if (it != null){
-                    if (infoEnable) log.info "${device.label?device.label:device.name}: Adding node $it to group $i"
+                    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Adding node $it to group $i"
                     cmds << zwave.associationV2.associationSet(groupingIdentifier:i, nodeId:Integer.parseInt(it,16))
                     refreshGroup = true
                 }
             }
             ((state."actualAssociation${i}" - state."defaultG${i}") - state."desiredAssociation${i}").each {
                 if (it != null){
-                    if (infoEnable) log.info "${device.label?device.label:device.name}: Removing node $it from group $i"
+                    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Removing node $it from group $i"
                     cmds << zwave.associationV2.associationRemove(groupingIdentifier:i, nodeId:Integer.parseInt(it,16))
                     refreshGroup = true
                 }
             }
             if (refreshGroup == true) cmds << zwave.associationV2.associationGet(groupingIdentifier:i)
-            else if (infoEnable) log.info "${device.label?device.label:device.name}: There are no association actions to complete for group $i"
+            else if (infoEnable != "false") log.info "${device.label?device.label:device.name}: There are no association actions to complete for group $i"
          }
       } else {
-         if (infoEnable) log.info "${device.label?device.label:device.name}: Association info not known for group $i. Requesting info from device."
+         if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Association info not known for group $i. Requesting info from device."
          cmds << zwave.associationV2.associationGet(groupingIdentifier:i)
-      }
+      }*/
    }
    return cmds
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     def temp = []
     if (cmd.nodeId != []) {
        cmd.nodeId.each {
@@ -1569,22 +1586,22 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
        }
     } 
     state."actualAssociation${cmd.groupingIdentifier}" = temp
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Associations for Group ${cmd.groupingIdentifier}: ${temp}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Associations for Group ${cmd.groupingIdentifier}: ${temp}"
     updateDataValue("associationGroup${cmd.groupingIdentifier}", "$temp")
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationGroupingsReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     sendEvent(name: "groups", value: cmd.supportedGroupings)
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Supported association groups: ${cmd.supportedGroupings}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Supported association groups: ${cmd.supportedGroupings}"
     state.associationGroups = cmd.supportedGroupings
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${cmd}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     if(cmd.applicationVersion != null && cmd.applicationSubVersion != null) {
 	    def firmware = "${cmd.applicationVersion}.${cmd.applicationSubVersion.toString().padLeft(2,'0')}"
-        if (infoEnable) log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
+        if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Firmware report received: ${firmware}"
         state.needfwUpdate = "false"
         createEvent(name: "firmware", value: "${firmware}")
     } else if(cmd.firmware0Version != null && cmd.firmware0SubVersion != null) {
@@ -1596,13 +1613,13 @@ def zwaveEvent(physicalgraph.zwave.commands.versionv1.VersionReport cmd) {
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.protectionv2.ProtectionReport cmd) {
-    if (debugEnable) log.debug "${device.label?device.label:device.name}: ${device.label?device.label:device.name}: ${cmd}"
-    if (infoEnable) log.info "${device.label?device.label:device.name}: Protection report received: Local protection is ${cmd.localProtectionState > 0 ? "on" : "off"} & Remote protection is ${cmd.rfProtectionState > 0 ? "on" : "off"}"
+    if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${device.label?device.label:device.name}: ${cmd}"
+    if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Protection report received: Local protection is ${cmd.localProtectionState > 0 ? "on" : "off"} & Remote protection is ${cmd.rfProtectionState > 0 ? "on" : "off"}"
     if (!state.lastRan || now() <= state.lastRan + 60000) {
         state.localProtectionState = cmd.localProtectionState
         state.rfProtectionState = cmd.rfProtectionState
     } else {
-        if (infoEnable) log.debug "${device.label?device.label:device.name}: Protection report received more than 60 seconds after running updated(). Possible configuration made at switch"
+        if (infoEnable != "false") log.debug "${device.label?device.label:device.name}: Protection report received more than 60 seconds after running updated(). Possible configuration made at switch"
     }
     //device.updateSetting("disableLocal",[value:cmd.localProtectionState?cmd.localProtectionState:0,type:"enum"])
     //device.updateSetting("disableRemote",[value:cmd.rfProtectionState?cmd.rfProtectionState:0,type:"enum"])
