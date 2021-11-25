@@ -1,7 +1,7 @@
 /**
  *  Inovelli Dimmer Red Series LZW31-SN
  *  Author: Eric Maycock (erocm123)
- *  Date: 2021-11-03
+ *  Date: 2021-11-24
  *
  *  ******************************************************************************************************
  *
@@ -23,6 +23,8 @@
  *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
+ *
+ *  2021-11-24: Increasing accuracy of physical vs digital detection. 
  *
  *  2021-11-03: Work around for association reports not being parsed. 
  *
@@ -1298,7 +1300,7 @@ def parse(description) {
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
     if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Basic report received with value of ${cmd.value ? "on" : "off"} ($cmd.value)"
-    dimmerEvents(cmd, (!state.lastRan || now() <= state.lastRan + 2000)?"digital":"physical")
+    dimmerEvents(cmd, (!state.lastRan || now() <= state.lastRan + 5000)?"digital":"physical")
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
@@ -1316,7 +1318,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cm
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd) {
     if (debugEnable != "false") log.debug "${device.label?device.label:device.name}: ${cmd}"
     if (infoEnable != "false") log.info "${device.label?device.label:device.name}: Switch Multilevel report received with value of ${cmd.value ? "on" : "off"} ($cmd.value)"
-    dimmerEvents(cmd, (!state.lastRan || now() <= state.lastRan + 2000)?"digital":"physical")
+    dimmerEvents(cmd, (!state.lastRan || now() <= state.lastRan + 5000)?"digital":"physical")
 }
 
 private dimmerEvents(physicalgraph.zwave.Command cmd, type="physical") {
