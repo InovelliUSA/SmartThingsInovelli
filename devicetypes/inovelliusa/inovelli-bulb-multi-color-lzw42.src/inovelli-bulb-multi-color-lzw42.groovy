@@ -1,5 +1,5 @@
 /**
- *  Copyright 2021 Inovelli / Eric Maycock
+ *  Copyright 2022 Inovelli / Eric Maycock
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -13,7 +13,7 @@
  *  Inovelli Bulb Multi-Color LZW42
  *
  *  Author: Eric Maycock
- *  Date: 2021-03-09
+ *  Date: 2022-07-26
  *  updated by ericm
  *      Optimized for new SmartThings App
  *  updated by bcopeland 1/7/2020 
@@ -36,6 +36,8 @@
  *		add z-wave color component ids manually as it didnt seem to match in correct command class version from he
  *  updated by erocm123
  *    porting over to SmartThings
+ *  updated by erocm123 7/26/2022
+ *    Fix for setColor change in ST App
  */
 
 metadata {
@@ -217,7 +219,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchcolorv2.SwitchColorReport cmd)
         
 		if ((hsv[0] > 0) && (hsv[1] > 0)) {
 			setGenericName(hsv[0])
-			result << createEvent(name: "level", value: Math.round(hsv[2]))
+			//result << createEvent(name: "level", value: Math.round(hsv[2]))
 		}
 		// Reset the values
 		RGB_NAMES.collect { state.colorReceived[it] = null}
@@ -358,24 +360,37 @@ def setColor(value) {
 	def result = []
 	if (value.hex) {
 		def c = value.hex.findAll(/[0-9a-fA-F]{2}/).collect { Integer.parseInt(it, 16) }
-		result << zwave.switchColorV2.switchColorSet(red: c[0], green: c[1], blue: c[2], warmWhite: 0, coldWhite: 0)
-	} else {
-		def rgb = huesatToRGB(value.hue, value.saturation)
-		result << zwave.switchColorV2.switchColorSet(red: rgb[0], green: rgb[1], blue: rgb[2], warmWhite:0, coldWhite:0)
-	}
-    if ((device.currentValue("switch") != "on") && (colorStaging != true)){
-        log.debug "Bulb is off. Turning on"
-        result << zwave.basicV1.basicSet(value: 0xFF)
+        def hueSat = rgbToHSV(c[0], c[1], c[2])
+        value.hue = hueSat[0]
+        value.saturation = hueSat[1]
+	} 
+    
+    if (value.hue) { 
+        sendEvent(name:"hue", value: Math.round(value.hue) as int)
+        state.hue = Math.round(value.hue) as int
     }
-    sendEvent(name:"hue", value: value.hue)
-    sendEvent(name:"saturation", value: value.saturation)
-    if (state.firmware == null || state.firmware == "") {
-        result << zwave.versionV1.versionGet()
-	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
-	} else if (state.firmware == "2.29") {
-	    commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
-    } else {
-        commands(result) + "delay 2000" + commands(queryAllColors(), 500)
+    if (value.saturation) {
+        sendEvent(name:"saturation", value: Math.round(value.saturation) as int)
+        state.saturation = Math.round(value.saturation) as int
+    }
+   
+    if (state.hue && state.saturation) {
+        def rgb = huesatToRGB(state.hue, state.saturation)
+		result << zwave.switchColorV2.switchColorSet(red: rgb[0], green: rgb[1], blue: rgb[2], warmWhite:0, coldWhite:0)
+        state.hue = null
+        state.saturation = null
+        if ((device.currentValue("switch") != "on") && (colorStaging != true)){
+            log.debug "Bulb is off. Turning on"
+            result << zwave.basicV1.basicSet(value: 0xFF)
+        }
+        if (state.firmware == null || state.firmware == "") {
+            result << zwave.versionV1.versionGet()
+	        commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
+	    } else if (state.firmware == "2.29") {
+	        commands(result)// + "delay 4000" + commands(queryAllColors(), 500)
+        } else {
+            commands(result) + "delay 2000" + commands(queryAllColors(), 500)
+        }
     }
 }
 
@@ -435,6 +450,7 @@ def rgbToHSV(red, green, blue) {
 }
 
 def huesatToRGB(hue, sat) {
+//log.degbug "hue ${hue}, sat: ${sat}"
 	def color = colorUtil.hsvToHex(Math.round(hue) as int, Math.round(sat) as int)
 	return colorUtil.hexToRgb(color)
 }
